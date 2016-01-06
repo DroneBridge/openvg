@@ -1,17 +1,24 @@
-INCLUDEFLAGS=-I/opt/vc/include -I/opt/vc/include/interface/vmcs_host/linux -I/opt/vc/include/interface/vcos/pthreads
-LIBFLAGS=-L/opt/vc/lib -lGLESv2 -lEGL -ljpeg
+ifdef RPISDK
+	CROSS_COMPILE ?= arm-linux-gnueabihf-
+endif
+
+CC = $(CROSS_COMPILE)gcc
+CCOPTS = -std=gnu89 -O2 -Wall	# Problems with gcc5 defaulting to C99
+
+INCLUDEFLAGS=-I$(RPISDK)/opt/vc/include -I$(RPISDK)/opt/vc/include/interface/vmcs_host/linux -I$(RPISDK)/opt/vc/include/interface/vcos/pthreads
+LIBFLAGS=-L$(RPISDK)/opt/vc/lib -lGLESv2 -lEGL -ljpeg
 FONTLIB=/usr/share/fonts/truetype/ttf-dejavu
 FONTFILES=DejaVuSans.inc  DejaVuSansMono.inc DejaVuSerif.inc
 all:	font2openvg fonts library	
 
 libshapes.o:	libshapes.c shapes.h fontinfo.h fonts
-	gcc -O2 -Wall $(INCLUDEFLAGS) -c libshapes.c
+	$(CC) $(CCOPTS) $(INCLUDEFLAGS) -c libshapes.c
 
 gopenvg:	openvg.go
 	go install .
 
 oglinit.o:	oglinit.c
-	gcc -O2 -Wall $(INCLUDEFLAGS) -c oglinit.c
+	$(CC) $(INCLUDEFLAGS) -c oglinit.c
 
 font2openvg:	fontutil/font2openvg.cpp
 	g++ -I/usr/include/freetype2 fontutil/font2openvg.cpp -o font2openvg -lfreetype
@@ -32,7 +39,7 @@ clean:
 	indent -linux -c 60 -brf -l 132  libshapes.c oglinit.c shapes.h fontinfo.h
 
 library: oglinit.o libshapes.o
-	gcc $(LIBFLAGS) -shared -o libshapes.so oglinit.o libshapes.o
+	$(CC) $(LIBFLAGS) -shared -o libshapes.so oglinit.o libshapes.o 
 
 install:
 	install -m 755 -p font2openvg /usr/bin/

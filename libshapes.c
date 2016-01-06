@@ -2,6 +2,9 @@
 // libshapes: high-level OpenVG API
 // Anthony Starks (ajstarks@gmail.com)
 //
+// Additional outline / windowing functions
+// Paeryn (github.com/paeryn)
+//
 #include <stdio.h>
 #include <stdlib.h>
 #include <termios.h>
@@ -10,13 +13,13 @@
 #include "VG/openvg.h"
 #include "VG/vgu.h"
 #include "EGL/egl.h"
-//#include "GLES/gl.h"
 #include "bcm_host.h"
 #include "DejaVuSans.inc"				   // font data
 #include "DejaVuSerif.inc"
 #include "DejaVuSansMono.inc"
 #include "eglstate.h"					   // data structures for graphics state
 #include "fontinfo.h"					   // font data structure
+
 static STATE_T _state, *state = &_state;	// global graphics state
 static const int MAXFONTPATH = 500;
 static int init_x = 0;		// Initial window position and size
@@ -83,6 +86,8 @@ Fontinfo loadfont(const int *Points,
 	f.CharacterMap = cmap;
 	f.GlyphAdvances = adv;
 	f.Count = ng;
+	f.descender_height = 0;
+	f.font_height = 0;
 	return f;
 }
 
@@ -243,6 +248,8 @@ void init(int *w, int *h) {
 				DejaVuSans_glyphInstructionIndices,
 				DejaVuSans_glyphInstructionCounts,
 				DejaVuSans_glyphAdvances, DejaVuSans_characterMap, DejaVuSans_glyphCount);
+	SansTypeface.descender_height = DejaVuSans_descender_height;
+	SansTypeface.font_height = DejaVuSans_font_height;
 
 	SerifTypeface = loadfont(DejaVuSerif_glyphPoints,
 				 DejaVuSerif_glyphPointIndices,
@@ -250,6 +257,8 @@ void init(int *w, int *h) {
 				 DejaVuSerif_glyphInstructionIndices,
 				 DejaVuSerif_glyphInstructionCounts,
 				 DejaVuSerif_glyphAdvances, DejaVuSerif_characterMap, DejaVuSerif_glyphCount);
+	SerifTypeface.descender_height = DejaVuSerif_descender_height;
+	SerifTypeface.font_height = DejaVuSerif_font_height;
 
 	MonoTypeface = loadfont(DejaVuSansMono_glyphPoints,
 				DejaVuSansMono_glyphPointIndices,
@@ -257,6 +266,8 @@ void init(int *w, int *h) {
 				DejaVuSansMono_glyphInstructionIndices,
 				DejaVuSansMono_glyphInstructionCounts,
 				DejaVuSansMono_glyphAdvances, DejaVuSansMono_characterMap, DejaVuSansMono_glyphCount);
+	MonoTypeface.descender_height = DejaVuSansMono_descender_height;
+	MonoTypeface.font_height = DejaVuSansMono_font_height;
 
 	*w = state->window_width;
 	*h = state->window_height;
@@ -267,7 +278,6 @@ void finish() {
 	unloadfont(SansTypeface.Glyphs, SansTypeface.Count);
 	unloadfont(SerifTypeface.Glyphs, SerifTypeface.Count);
 	unloadfont(MonoTypeface.Glyphs, MonoTypeface.Count);
-//	glClear(GL_COLOR_BUFFER_BIT);	// Superfluous, no gl context to affect
 	eglSwapBuffers(state->display, state->surface);
 	eglMakeCurrent(state->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 	eglDestroySurface(state->display, state->surface);
@@ -419,10 +429,10 @@ unsigned char *next_utf8_char(unsigned char *utf8, int *codepoint) {
 	int datalen = (int)strlen((const char *)utf8);
 	unsigned char *p = utf8;
 
-	if (datalen < 1 || *utf8 == 0) { // End of string
+	if (datalen < 1 || *utf8 == 0) {		   // End of string
 		return NULL;
 	}
-	if (!(utf8[0] & 0x80)) {			 // 0xxxxxxx
+	if (!(utf8[0] & 0x80)) {			   // 0xxxxxxx
 		*codepoint = (wchar_t) utf8[0];
 		seqlen = 1;
 	} else if ((utf8[0] & 0xE0) == 0xC0) {		   // 110xxxxx 
@@ -491,6 +501,16 @@ void TextEnd(VGfloat x, VGfloat y, char *s, Fontinfo f, int pointsize) {
 	Text(x - tw, y, s, f, pointsize);
 }
 
+// Report a font's height
+VGfloat TextHeight(Fontinfo f, int pointsize) {
+	return (f.font_height * pointsize) / 65536;
+}
+
+// Report a font's depth (how far under the baseline it goes)
+VGfloat TextDepth(Fontinfo f, int pointsize) {
+	return (-f.descender_height * pointsize) / 65536;
+}
+
 //
 // Shape functions
 //
@@ -499,7 +519,7 @@ void TextEnd(VGfloat x, VGfloat y, char *s, Fontinfo f, int pointsize) {
 // Changed capabilities as others not needed at the moment - allows possible
 // driver optimisations.
 VGPath newpath() {
-	return vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 0, 0, VG_PATH_CAPABILITY_APPEND_TO);  // Other capabilities not needed
+	return vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 0, 0, VG_PATH_CAPABILITY_APPEND_TO);	// Other capabilities not needed
 }
 
 // makecurve makes path data using specified segments and coordinates
@@ -599,7 +619,7 @@ void Arc(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat sa, VGfloat aext) {
 
 // Start begins the picture, clearing a rectangular region with a specified color
 void Start(int width, int height) {
-	VGfloat color[4] = { 255, 255, 255, 1 };
+	VGfloat color[4] = { 1, 1, 1, 1 };
 	vgSetfv(VG_CLEAR_COLOR, 4, color);
 	vgClear(0, 0, width, height);
 	color[0] = 0, color[1] = 0, color[2] = 0;
@@ -639,14 +659,6 @@ void Background(unsigned int r, unsigned int g, unsigned int b) {
 	RGB(r, g, b, colour);
 	vgSetfv(VG_CLEAR_COLOR, 4, colour);
 	vgClear(0, 0, state->window_width, state->window_height);
-/*
-	Replaced - above is the proper way to clear the window rather than
-	creating a fill and drawing a rectangle which is subject to
-	transformations and blend modes.
-
-	Fill(r, g, b, 1);
-	Rect(0, 0, state->screen_width, state->screen_height);
-*/
 }
 
 // clear the screen to a background color with alpha
@@ -655,15 +667,17 @@ void BackgroundRGB(unsigned int r, unsigned int g, unsigned int b, VGfloat a) {
 	RGBA(r, g, b, a, colour);
 	vgSetfv(VG_CLEAR_COLOR, 4, colour);
 	vgClear(0, 0, state->window_width, state->window_height);
-/*
-	Fill(r, g, b, a);
-	Rect(0, 0, state->screen_width, state->screen_height);
-*/
 }
 
 // Clear the window to previously set background colour
 void WindowClear() {
 	vgClear(0, 0, state->window_width, state->window_height);
+}
+
+// Clear a given rectangle in window coordinates (not affected by
+// transformations)
+void AreaClear(unsigned int x, unsigned int y, unsigned int w, unsigned int h) {
+	vgClear(x, y, w, h);
 }
 
 // Change window opacity
@@ -693,6 +707,7 @@ void QbezierOutline(VGfloat sx, VGfloat sy, VGfloat cx, VGfloat cy, VGfloat ex, 
 	VGfloat coords[] = { sx, sy, cx, cy, ex, ey };
 	makecurve(segments, coords, VG_STROKE_PATH);
 }
+
 // Rect makes a rectangle at the specified location and dimensions
 void RectOutline(VGfloat x, VGfloat y, VGfloat w, VGfloat h) {
 	VGPath path = newpath();

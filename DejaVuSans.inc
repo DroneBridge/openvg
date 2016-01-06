@@ -919,6 +919,8 @@ static const int DejaVuSans_glyphAdvances[224] = {
     53552,53552,53552,53552,24176,24176,24176,24176,53248,55168,53248,53248,53248,53248,53248,72928,53248,55168,55168,55168,
     55168,51504,55248,51504 };
 
+static const int DejaVuSans_descender_height = -20528;
+static const int DejaVuSans_font_height = 80800;
 static const int DejaVuSans_glyphCount = 224;
 static const short DejaVuSans_characterMap[256] = {
     -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
