@@ -34,7 +34,7 @@
 #include FT_OUTLINE_H
 
 #define OUTPUT_INTS
-
+#define NGLYPHS 500
 class Vector2
 {
 public:
@@ -112,9 +112,9 @@ int main (int argc, char * const argv[])
         float                           global_miny = 1000000.0f;
         float                           global_maxy = -10000000.0f;
         
-	unsigned int characterMap[256];
+	unsigned int characterMap[NGLYPHS];
 	int glyphs = 0;
-	for(int cc=0;cc<256;cc++)
+	for(int cc=0;cc<NGLYPHS;cc++)
 	{
 		characterMap[cc] = 0xffffffffu;	//initially nonexistent
 
@@ -372,12 +372,12 @@ int main (int argc, char * const argv[])
 
 	//print the number of glyphs and the character map
 	fprintf (f,"static const int %s_glyphCount = %d;\n",argv[3],glyphs);
-	fprintf (f,"static const short %s_characterMap[256] = {", argv[3]);
-	for(int i=0;i<256;i++)
+	fprintf (f,"static const short %s_characterMap[500] = {", argv[3]);
+	for(int i=0;i<NGLYPHS;i++)
 	{
 		if ((i % 20)==0)
 			fprintf (f,"\n    ");
-		fprintf (f,"%d%c",characterMap[i],(i==(256-1))?' ':',');
+		fprintf (f,"%d%c",characterMap[i],(i==(NGLYPHS-1))?' ':',');
 	}
 	fprintf (f,"};\n\n");
 	fclose(f);

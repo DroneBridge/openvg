@@ -51,10 +51,8 @@ extern "C" {
 
 	// Added by Paeryn
 	extern void initWindowSize(int x, int y, unsigned int w, unsigned int h);
-
 	extern VGfloat TextHeight(Fontinfo f, int pointsize);
 	extern VGfloat TextDepth(Fontinfo f, int pointsize);
-
 	extern void AreaClear(unsigned int x, unsigned int y, unsigned int w, unsigned int h);
 	extern void WindowClear();
 	extern void WindowOpacity(unsigned int alpha);

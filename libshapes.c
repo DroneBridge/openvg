@@ -424,6 +424,9 @@ void ClipEnd() {
 	vgSeti(VG_SCISSORING, VG_FALSE);
 }
 
+// Text Functions
+
+// next_utf_char handles UTF encoding
 unsigned char *next_utf8_char(unsigned char *utf8, int *codepoint) {
 	int seqlen;
 	int datalen = (int)strlen((const char *)utf8);
@@ -501,12 +504,12 @@ void TextEnd(VGfloat x, VGfloat y, char *s, Fontinfo f, int pointsize) {
 	Text(x - tw, y, s, f, pointsize);
 }
 
-// Report a font's height
+// TextHeight reports a font's height
 VGfloat TextHeight(Fontinfo f, int pointsize) {
 	return (f.font_height * pointsize) / 65536;
 }
 
-// Report a font's depth (how far under the baseline it goes)
+// TextDepth reports a font's depth (how far under the baseline it goes)
 VGfloat TextDepth(Fontinfo f, int pointsize) {
 	return (-f.descender_height * pointsize) / 65536;
 }
@@ -653,7 +656,7 @@ void SaveEnd(char *filename) {
 	assert(eglGetError() == EGL_SUCCESS);
 }
 
-// clear the screen to a solid background color
+// Backgroud clears the screen to a solid background color
 void Background(unsigned int r, unsigned int g, unsigned int b) {
 	VGfloat colour[4];
 	RGB(r, g, b, colour);
@@ -661,7 +664,7 @@ void Background(unsigned int r, unsigned int g, unsigned int b) {
 	vgClear(0, 0, state->window_width, state->window_height);
 }
 
-// clear the screen to a background color with alpha
+// BackgroundRGB clears the screen to a background color with alpha
 void BackgroundRGB(unsigned int r, unsigned int g, unsigned int b, VGfloat a) {
 	VGfloat colour[4];
 	RGBA(r, g, b, a, colour);
@@ -669,46 +672,47 @@ void BackgroundRGB(unsigned int r, unsigned int g, unsigned int b, VGfloat a) {
 	vgClear(0, 0, state->window_width, state->window_height);
 }
 
-// Clear the window to previously set background colour
+// WindowClear clears the window to previously set background colour
 void WindowClear() {
 	vgClear(0, 0, state->window_width, state->window_height);
 }
 
-// Clear a given rectangle in window coordinates (not affected by
+// AreaClear clears a given rectangle in window coordinates (not affected by
 // transformations)
 void AreaClear(unsigned int x, unsigned int y, unsigned int w, unsigned int h) {
 	vgClear(x, y, w, h);
 }
 
-// Change window opacity
+// WindowOpacity sets the  window opacity
 void WindowOpacity(unsigned int a) {
 	dispmanChangeWindowOpacity(state, a);
 }
 
-// Move window to given position
+// WindowPosition moves the window to given position
 void WindowPosition(int x, int y) {
 	dispmanMoveWindow(state, x, y);
 }
 
+// Outlined shapes
 // Hollow shapes -because filling still happens even with a fill of 0,0,0,0
 // unlike where using a strokewidth of 0 disables the stroke.
 // Either this or change the original functions to require the VG_x_PATH flags
 
-// CBezier makes a quadratic bezier curve
+// CBezier makes a quadratic bezier curve, stroked
 void CbezierOutline(VGfloat sx, VGfloat sy, VGfloat cx, VGfloat cy, VGfloat px, VGfloat py, VGfloat ex, VGfloat ey) {
 	VGubyte segments[] = { VG_MOVE_TO_ABS, VG_CUBIC_TO };
 	VGfloat coords[] = { sx, sy, cx, cy, px, py, ex, ey };
 	makecurve(segments, coords, VG_STROKE_PATH);
 }
 
-// QBezier makes a quadratic bezier curve
+// QBezierOutline makes a quadratic bezier curve, outlined 
 void QbezierOutline(VGfloat sx, VGfloat sy, VGfloat cx, VGfloat cy, VGfloat ex, VGfloat ey) {
 	VGubyte segments[] = { VG_MOVE_TO_ABS, VG_QUAD_TO };
 	VGfloat coords[] = { sx, sy, cx, cy, ex, ey };
 	makecurve(segments, coords, VG_STROKE_PATH);
 }
 
-// Rect makes a rectangle at the specified location and dimensions
+// RectOutline makes a rectangle at the specified location and dimensions, outlined 
 void RectOutline(VGfloat x, VGfloat y, VGfloat w, VGfloat h) {
 	VGPath path = newpath();
 	vguRect(path, x, y, w, h);
@@ -716,7 +720,7 @@ void RectOutline(VGfloat x, VGfloat y, VGfloat w, VGfloat h) {
 	vgDestroyPath(path);
 }
 
-// Roundrect makes an rounded rectangle at the specified location and dimensions
+// RoundrectOutline  makes an rounded rectangle at the specified location and dimensions, outlined 
 void RoundrectOutline(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat rw, VGfloat rh) {
 	VGPath path = newpath();
 	vguRoundRect(path, x, y, w, h, rw, rh);
@@ -724,7 +728,7 @@ void RoundrectOutline(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat rw, VG
 	vgDestroyPath(path);
 }
 
-// Ellipse makes an ellipse at the specified location and dimensions
+// EllipseOutline makes an ellipse at the specified location and dimensions, outlined
 void EllipseOutline(VGfloat x, VGfloat y, VGfloat w, VGfloat h) {
 	VGPath path = newpath();
 	vguEllipse(path, x, y, w, h);
@@ -732,12 +736,12 @@ void EllipseOutline(VGfloat x, VGfloat y, VGfloat w, VGfloat h) {
 	vgDestroyPath(path);
 }
 
-// Circle makes a circle at the specified location and dimensions
+// CircleOutline makes a circle at the specified location and dimensions, outlined
 void CircleOutline(VGfloat x, VGfloat y, VGfloat r) {
 	EllipseOutline(x, y, r, r);
 }
 
-// Arc makes an elliptical arc at the specified location and dimensions
+// ArcOutline makes an elliptical arc at the specified location and dimensions, outlined
 void ArcOutline(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat sa, VGfloat aext) {
 	VGPath path = newpath();
 	vguArc(path, x, y, w, h, sa, aext, VGU_ARC_OPEN);

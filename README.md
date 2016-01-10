@@ -51,19 +51,30 @@ Here is the graphics equivalent of "hello, world"
 Coordinates are VGfloat values, with the origin at the lower left, with x increasing to the right, and y increasing up.
 OpenVG specifies colors as a VGfloat array containing red, green, blue, alpha values ranging from 0.0 to 1.0, but typically colors are specified as RGBA (0-255 for RGB, A from 0.0 to 1.0)
 
-	void initWindowSize(int x, int y, unsigned int w, unsigned int h)
-Define how big to make the window, and where to place the top-left corner (as
-measured from the top-left of the screen). If the width and height requested
-are larger than the screen size then the window size will be reduced to fit
-the screen. The x,y coordinate can be negative so that the window appears
-partially off screen, but will be clipped so that at least one pixel in each
-direction will be on the screen. The window won't be created until init() is
-called. If initWindowSize() isn't called first then the window will default to
-being at 0,0 with a width,height the same as the screen.
+### Window (canvas) functions
 
-	void init(&width, &height)
-Initialize the window and OpenVG. width and height will be filled with the
-window's size.
+	void WindowClear() 
+WindowClear clears the window to previously set background colour
+
+	void AreaClear(unsigned int x, unsigned int y, unsigned int w, unsigned int h)
+AreaClear clears a given rectangle in window coordinates
+
+	void WindowOpacity(unsigned int a)
+WindowOpacity sets the  window opacity
+
+	void WindowPosition(int x, int y)
+WindowPosition moves the window to given position
+
+### Setup and shutdown
+
+	void init(int *w, int *h)
+Initialize the graphics: width and height of the canvas are returned.  This should begin every program.
+
+	void initWindowSize(int x, int y, unsigned int w, unsigned int h)
+Initialize with specific dimensions
+
+	void finish() 
+Shutdown the graphics. This should end every program.
 
 	void Start(int width, int height)
 Begin the picture, clear the screen with a default white, set the stroke and fill to black.
@@ -98,12 +109,8 @@ Set the fill color
 	void Background(unsigned int r, unsigned int g, unsigned int b)
 Fill the screen with the background color defined from RGB values.
 
-	void BackgroundRGB(unsigned int r, unsigned int g, unsigned int b, float a)
-Fill the screen with the background color defined from RGBA values.
-NOTE: in this (paeryn's) version the background alpha is ignored for display
-purposes - instead a global alpha is used for the whole window. This doesn't
-affect the usage of the alpha channel for blending purposes, only for display
-purposes.
+	void BackgroundRGB(unsigned int r, unsigned int g, unsigned int b, VGfloat a)
+clears the screen to a background color with alpha
 
 	void StrokeWidth(float width)
 Set the stroke width.
@@ -134,9 +141,15 @@ Draw a line between (x1, y1) and (x2, y2).
 	void Rect(VGfloat x, VGfloat y, VGfloat w, VGfloat h)
 Draw a rectangle with its origin (lower left) at (x,y), and size is (width,height).
 
+	void RectOutline(VGfloat x, VGfloat y, VGfloat w, VGfloat h)
+Outlined version
+
 	void Roundrect(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat rw, VGfloat rh)
 Draw a rounded rectangle with its origin (lower left) at (x,y), and size is (width,height).  
 The width and height of the corners are specified with (rw,rh).
+
+	void RoundrectOutline(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat rw, VGfloat rh)
+Outlined version
 
 	void Polygon(VGfloat *x, VGfloat *y, VGint n)
 Draw a polygon using the coordinates in arrays pointed to by x and y.  The number of coordinates is n.
@@ -147,28 +160,32 @@ Draw a polyline using the coordinates in arrays pointed to by x and y.  The numb
 	void Circle(VGfloat x, VGfloat y, VGfloat r)
 Draw a circle centered at (x,y) with radius r.
 
+	void CircleOutline(VGfloat x, VGfloat y, VGfloat r)
+Outlined version
+
 	void Ellipse(VGfloat x, VGfloat y, VGfloat w, VGfloat h)
 Draw an ellipse centered at (x,y) with radii (w, h).
+
+	void EllipseOutline(VGfloat x, VGfloat y, VGfloat w, VGfloat h)
+Outlined version
 
 	void Qbezier(VGfloat sx, VGfloat sy, VGfloat cx, VGfloat cy, VGfloat ex, VGfloat ey)
 Draw a quadratic bezier curve beginning at (sx, sy), using control points at (cx, cy), ending at (ex, ey).
 
+	void QbezierOutline(VGfloat sx, VGfloat sy, VGfloat cx, VGfloat cy, VGfloat ex, VGfloat ey)
+Outlined version
+
 	void Cbezier(VGfloat sx, VGfloat sy, VGfloat cx, VGfloat cy, VGfloat px, VGfloat py, VGfloat ex, VGfloat ey)
 Draw a cubic bezier curve beginning at (sx, sy), using control points at (cx, cy) and (px, py), ending at (ex, ey).
+
+	void CbezierOutline(VGfloat sx, VGfloat sy, VGfloat cx, VGfloat cy, VGfloat px, VGfloat py, VGfloat ex, VGfloat ey) 
+Outlined version
 
 	void Arc(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat sa, VGfloat aext)
 Draw an elliptical arc centered at (x, y), with width and height at (w, h).  Start angle (degrees) is sa, angle extent is aext.
 
-
-Outlined versions of above shapes (omitting the need to set a transparent fill)
-
-	void RectOutline(VGfloat x, VGfloat y, VGfloat w, VGfloat h)
-	void RoundrectOutline(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat rw, VGfloat rh)
-	void CircleOutline(VGfloat x, VGfloat y, VGfloat r)
-	void EllipseOutline(VGfloat x, VGfloat y, VGfloat w, VGfloat h)
 	void ArcOutline(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat sa, VGfloat aext)
-	void QbezierOutline(VGfloat sx, VGfloat sy, VGfloat cx, VGfloat cy, VGfloat ex, VGfloat ey)
-	void CbezierOutline(VGfloat sx, VGfloat sy, VGfloat cx, VGfloat cy, VGfloat px, VGfloat py, VGfloat ex, VGfloat ey)
+Outlined version
 
 ### Text and Images
 
@@ -183,6 +200,12 @@ Draw a the text srtring (s) at with its lend aligned to location (x,y), using po
 
 	VGfloat TextWidth(char *s, Fontinfo f, int pointsize)
 Return the width of text
+
+	VGfloat TextHeight(Fontinfo f, int pointsize)
+Return a font's height
+
+	TextDepth(Fontinfo f, int pointsize)
+Return a font's distance beyond the baseline.
 
 	void Image(VGfloat x, VGfloat y, int w, int h, char * filename)
 place a JPEG image with dimensions (w,h) at (x,y).
@@ -202,6 +225,12 @@ Scale by x,y.
 	void Shear(VGfloat x, VGfloat y)
 Shear by the angles x,y.
 
+## Clipping
+	void ClipRect(VGint x, VGint y, VGint w, VGint h)
+Limit drawing the drawing area to the specified rectangle, end with ClipEnd()
+
+	void ClipEnd()
+Ends clipping area
 
 ## Using fonts
 
@@ -295,6 +324,8 @@ The openvg shapes library can now be used in C code by including shapes.h and fo
 NOTE: Due to paeryn's lack of Go knowledge this version hasn't currently updadted the Go wrapper so the added functionality is not there.
 
 A Go programming language wrapper for the library is found in openvg.go. Sample clients are in the directory go-client.  The API closely follows the C API; here is the "hello, world" program in Go:
+
+<a href="https://godoc.org/github.com/ajstarks/openvg">The Go API</a>
 
 	package main
 
