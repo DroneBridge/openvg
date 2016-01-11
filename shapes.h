@@ -42,8 +42,8 @@ extern "C" {
 	extern void ClipRect(VGint x, VGint y, VGint w, VGint h);
 	extern void ClipEnd();
 	extern Fontinfo loadfont(const int *, const int *, const unsigned char *, const int *, const int *, const int *,
-				 const short *, int);
-	extern void unloadfont(VGPath *, int);
+				 const short *, int, int, int);
+	extern void unloadfont(Fontinfo);
 	extern void makeimage(VGfloat, VGfloat, int, int, VGubyte *);
 	extern void saveterm();
 	extern void restoreterm();
