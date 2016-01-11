@@ -14,6 +14,9 @@ all:	font2openvg fonts library
 libshapes.o:	libshapes.c shapes.h fontinfo.h fonts
 	$(CC) $(CCOPTS) $(INCLUDEFLAGS) -c libshapes.c
 
+#fontsystem.o:	fontsystem.c fontinfo.h
+#	$(CC) $(CCOPTS) $(INCLUDEFLAGS) -I/usr/include/freetype2 -c fontsystem.c
+
 gopenvg:	openvg.go
 	go install .
 
@@ -39,7 +42,7 @@ clean:
 	indent -linux -c 60 -brf -l 132  libshapes.c oglinit.c shapes.h fontinfo.h
 
 library: oglinit.o libshapes.o
-	$(CC) $(LIBFLAGS) -shared -o libshapes.so oglinit.o libshapes.o 
+	$(CC) $(LIBFLAGS) -shared -o libshapes.so oglinit.o libshapes.o
 
 install:
 	install -m 755 -p font2openvg /usr/bin/

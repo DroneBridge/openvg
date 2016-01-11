@@ -332,7 +332,7 @@ int main (int argc, char * const argv[])
 */
         //print minimum and maximum y values over the whole font
         fprintf (f,"static const int %s_descender_height = %d;\n",argv[3],(int)(65536.0f*global_miny));
-        fprintf (f,"static const int %s_font_height = %d;\n",argv[3],(int)(65536.0f*global_maxy));
+        fprintf (f,"static const int %s_ascender_height = %d;\n",argv[3],(int)(65536.0f*global_maxy));
 #else
 	//print points
 	fprintf (f,"static const float %s_glyphPoints[%d*2] = {", argv[3],gpvec.size());
@@ -366,7 +366,7 @@ int main (int argc, char * const argv[])
 	fprintf (f,"};\n\n");
 */
         fprintf (f,"static const float %s_descender_height = %d;\n",argv[3],global_miny));
-        fprintf (f,"static const float %s_font_height = %d;\n",argv[3],global_maxy));
+        fprintf (f,"static const float %s_ascender_height = %d;\n",argv[3],global_maxy));
 #endif
 
 

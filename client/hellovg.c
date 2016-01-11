@@ -9,7 +9,6 @@
 
 int main() {
 	int width, height;
-	VGfloat font_width, font_height, font_depth;
 	char s[3];
 	char hello1[] = {'H','e','j',',',' ','v', 0xc3, 0xa4,'r' , 'l','d' ,'e','n',0};
 	char hello2[] = {'H','e','l','l',0xc3,0xb3,' ', 'V', 'i', 'l', 0xc3,0xa1,'g',0};

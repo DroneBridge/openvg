@@ -15,6 +15,9 @@ shapedemo:	shapedemo.c ../libshapes.o ../oglinit.o
 test:	shapedemo
 	./shapedemo demo 5
 
+#newfont: newfont.c ../libshapes.o ../oglinit.o ../fontsystem.o
+#	$(CC) $(CCOPTS) $(INCLUDEFLAGS) -o  newfont newfont.c ../libshapes.o ../oglinit.o ../fontsystem.o $(LIBFLAGS) -lfreetype -lfontconfig
+
 chars:	chars.c ../libshapes.o ../oglinit.o
 	$(CC) $(CCOPTS) $(INCLUDEFLAGS) -o  chars chars.c ../libshapes.o ../oglinit.o $(LIBFLAGS)
 

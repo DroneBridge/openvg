@@ -2663,7 +2663,7 @@ static const int DejaVuSerif_glyphAdvances[468] = {
     71360,52400,49136,49136,27840,130256,115648,101568 };
 
 static const int DejaVuSerif_descender_height = -21424;
-static const int DejaVuSerif_font_height = 91776;
+static const int DejaVuSerif_ascender_height = 91776;
 static const int DejaVuSerif_glyphCount = 468;
 static const short DejaVuSerif_characterMap[500] = {
     -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,

@@ -62,12 +62,17 @@ void restoreterm() {
 Fontinfo loadfont(const int *Points,
 		  const int *PointIndices,
 		  const unsigned char *Instructions,
-		  const int *InstructionIndices, const int *InstructionCounts, const int *adv, const short *cmap, int ng) {
+		  const int *InstructionIndices, const int *InstructionCounts,
+                  const int *adv, const short *cmap, int ng,
+                  int descender, int ascender) {
 
 	Fontinfo f;
 	int i;
 
-	memset(f.Glyphs, 0, MAXFONTPATH * sizeof(VGPath));
+                //memset(f.Glyphs, 0, MAXFONTPATH * sizeof(VGPath));
+        f = calloc(1, sizeof(Fontinfo_T));
+        assert(f != NULL);
+        
 	if (ng > MAXFONTPATH) {
 		return f;
 	}
@@ -77,26 +82,32 @@ Fontinfo loadfont(const int *Points,
 		int ic = InstructionCounts[i];
 		VGPath path = vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_S_32,
 					   1.0f / 65536.0f, 0.0f, 0, 0,
-					   VG_PATH_CAPABILITY_ALL);
-		f.Glyphs[i] = path;
+					   VG_PATH_CAPABILITY_APPEND_TO);
+		f->Glyphs[i] = path;
 		if (ic) {
 			vgAppendPathData(path, ic, instructions, p);
 		}
 	}
-	f.CharacterMap = cmap;
-	f.GlyphAdvances = adv;
-	f.Count = ng;
-	f.descender_height = 0;
-	f.font_height = 0;
+	f->CharacterMap = cmap;
+	f->GlyphAdvances = adv;
+	f->Count = ng;
+	f->descender_height = descender;
+	f->ascender_height = ascender;
 	return f;
 }
 
 // unloadfont frees font path data
-void unloadfont(VGPath * glyphs, int n) {
-	int i;
-	for (i = 0; i < n; i++) {
-		vgDestroyPath(glyphs[i]);
-	}
+void unloadfont(Fontinfo f) {
+        VGPath *glyphs;
+        int i;
+
+        if (f) {
+                glyphs = &(f->Glyphs[0]);
+                for (i = 0; i < f->Count; i++) {
+                        vgDestroyPath(glyphs[i]);
+                }
+                free(f);
+        }
 }
 
 // createImageFromJpeg decompresses a JPEG image to the standard image format
@@ -247,27 +258,33 @@ void init(int *w, int *h) {
 				DejaVuSans_glyphInstructions,
 				DejaVuSans_glyphInstructionIndices,
 				DejaVuSans_glyphInstructionCounts,
-				DejaVuSans_glyphAdvances, DejaVuSans_characterMap, DejaVuSans_glyphCount);
-	SansTypeface.descender_height = DejaVuSans_descender_height;
-	SansTypeface.font_height = DejaVuSans_font_height;
+				DejaVuSans_glyphAdvances,
+                                DejaVuSans_characterMap,
+                                DejaVuSans_glyphCount,
+                                DejaVuSans_descender_height,
+                                DejaVuSans_ascender_height);
 
 	SerifTypeface = loadfont(DejaVuSerif_glyphPoints,
 				 DejaVuSerif_glyphPointIndices,
 				 DejaVuSerif_glyphInstructions,
 				 DejaVuSerif_glyphInstructionIndices,
 				 DejaVuSerif_glyphInstructionCounts,
-				 DejaVuSerif_glyphAdvances, DejaVuSerif_characterMap, DejaVuSerif_glyphCount);
-	SerifTypeface.descender_height = DejaVuSerif_descender_height;
-	SerifTypeface.font_height = DejaVuSerif_font_height;
-
+				 DejaVuSerif_glyphAdvances,
+                                 DejaVuSerif_characterMap,
+                                 DejaVuSerif_glyphCount,
+                                 DejaVuSerif_descender_height,
+                                 DejaVuSerif_ascender_height);
+        
 	MonoTypeface = loadfont(DejaVuSansMono_glyphPoints,
 				DejaVuSansMono_glyphPointIndices,
 				DejaVuSansMono_glyphInstructions,
 				DejaVuSansMono_glyphInstructionIndices,
 				DejaVuSansMono_glyphInstructionCounts,
-				DejaVuSansMono_glyphAdvances, DejaVuSansMono_characterMap, DejaVuSansMono_glyphCount);
-	MonoTypeface.descender_height = DejaVuSansMono_descender_height;
-	MonoTypeface.font_height = DejaVuSansMono_font_height;
+				DejaVuSansMono_glyphAdvances,
+                                DejaVuSansMono_characterMap,
+                                DejaVuSansMono_glyphCount,
+                                DejaVuSansMono_descender_height,
+                                DejaVuSansMono_ascender_height);
 
 	*w = state->window_width;
 	*h = state->window_height;
@@ -275,10 +292,13 @@ void init(int *w, int *h) {
 
 // finish cleans up
 void finish() {
-	unloadfont(SansTypeface.Glyphs, SansTypeface.Count);
-	unloadfont(SerifTypeface.Glyphs, SerifTypeface.Count);
-	unloadfont(MonoTypeface.Glyphs, MonoTypeface.Count);
-	eglSwapBuffers(state->display, state->surface);
+	unloadfont(SansTypeface);
+        SansTypeface = NULL;
+	unloadfont(SerifTypeface);
+        SerifTypeface = NULL;
+	unloadfont(MonoTypeface);
+        MonoTypeface = NULL;
+        eglSwapBuffers(state->display, state->surface);
 	eglMakeCurrent(state->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 	eglDestroySurface(state->display, state->surface);
 	eglDestroyContext(state->display, state->context);
@@ -459,7 +479,7 @@ void Text(VGfloat x, VGfloat y, char *s, Fontinfo f, int pointsize) {
 	int character;
 	unsigned char *ss = (unsigned char *)s;
 	while ((ss = next_utf8_char(ss, &character)) != NULL) {
-		int glyph = f.CharacterMap[character];
+		int glyph = f->CharacterMap[character];
 		if (glyph == -1) {
 			continue;			   //glyph is undefined
 		}
@@ -470,8 +490,8 @@ void Text(VGfloat x, VGfloat y, char *s, Fontinfo f, int pointsize) {
 		};
 		vgLoadMatrix(mm);
 		vgMultMatrix(mat);
-		vgDrawPath(f.Glyphs[glyph], VG_FILL_PATH);
-		xx += size * f.GlyphAdvances[glyph] / 65536.0f;
+		vgDrawPath(f->Glyphs[glyph], VG_FILL_PATH);
+		xx += size * f->GlyphAdvances[glyph] / 65536.0f;
 	}
 	vgLoadMatrix(mm);
 }
@@ -483,11 +503,11 @@ VGfloat TextWidth(char *s, Fontinfo f, int pointsize) {
 	int character;
 	unsigned char *ss = (unsigned char *)s;
 	while ((ss = next_utf8_char(ss, &character)) != NULL) {
-		int glyph = f.CharacterMap[character];
+		int glyph = f->CharacterMap[character];
 		if (glyph == -1) {
 			continue;			   //glyph is undefined
 		}
-		tw += size * f.GlyphAdvances[glyph] / 65536.0f;
+		tw += size * f->GlyphAdvances[glyph] / 65536.0f;
 	}
 	return tw;
 }
@@ -506,12 +526,12 @@ void TextEnd(VGfloat x, VGfloat y, char *s, Fontinfo f, int pointsize) {
 
 // TextHeight reports a font's height
 VGfloat TextHeight(Fontinfo f, int pointsize) {
-	return (f.font_height * pointsize) / 65536;
+	return (f->ascender_height * pointsize) / 65536;
 }
 
 // TextDepth reports a font's depth (how far under the baseline it goes)
 VGfloat TextDepth(Fontinfo f, int pointsize) {
-	return (-f.descender_height * pointsize) / 65536;
+	return (-f->descender_height * pointsize) / 65536;
 }
 
 //
