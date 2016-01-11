@@ -250,18 +250,20 @@ and include the generated code in your program:
 	
 The loadfont function creates OpenVG paths from the font data:
 
-	loadfont(DejaVuSans_glyphPoints, 
+	DejaFont = loadfont(DejaVuSans_glyphPoints, 
             DejaVuSans_glyphPointIndices, 
         	DejaVuSans_glyphInstructions,                
         	DejaVuSans_glyphInstructionIndices, 
             DejaVuSans_glyphInstructionCounts, 
             DejaVuSans_glyphAdvances,
             DejaVuSans_characterMap, 
-        	DejaVuSans_glyphCount);
+        	DejaVuSans_glyphCount,
+            DejaVuSans_descender_height,
+            DejaVuSans_ascender_height);
 
 The unloadfont function releases the path information:
 	
-	unloadfont(DejaFont.Glyphs, DejaFont.Count);
+	unloadfont(DejaFont);
 
 # Build and run
 
