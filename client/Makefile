@@ -3,11 +3,11 @@ ifdef RPISDK
 endif
 
 CC = $(CROSS_COMPILE)gcc
-CCOPTS = -O2 -Wall
+CCOPTS = -O0 -Wall -g
 
 INCLUDEFLAGS=-I$(RPISDK)/opt/vc/include -I$(RPISDK)/opt/vc/include/interface/vmcs_host/linux -I$(RPISDK)/opt/vc/include/interface/vcos/pthreads -I..
 LIBFLAGS= -Wl,-rpath=$(RPISDK)/opt/vc/lib -L$(RPISDK)/opt/vc/lib -lEGL -lGLESv2 -lbcm_host -lpthread  -ljpeg
-all: shapedemo hellovg mouse-hellovg particles screensize clip
+all: shapedemo hellovg mouse-hellovg particles clip
 
 shapedemo:	shapedemo.c ../libshapes.o ../oglinit.o
 	$(CC) $(CCOPTS) $(INCLUDEFLAGS) -o shapedemo shapedemo.c ../libshapes.o ../oglinit.o $(LIBFLAGS)
@@ -15,8 +15,8 @@ shapedemo:	shapedemo.c ../libshapes.o ../oglinit.o
 test:	shapedemo
 	./shapedemo demo 5
 
-#newfont: newfont.c ../libshapes.o ../oglinit.o ../fontsystem.o
-#	$(CC) $(CCOPTS) $(INCLUDEFLAGS) -o  newfont newfont.c ../libshapes.o ../oglinit.o ../fontsystem.o $(LIBFLAGS) -lfreetype -lfontconfig
+newfont: newfont.c ../libshapes.o ../oglinit.o ../fontsystem.o
+	$(CC) $(CCOPTS) $(INCLUDEFLAGS) -o  newfont newfont.c ../libshapes.o ../oglinit.o ../fontsystem.o $(LIBFLAGS) -lfreetype -lfontconfig
 
 chars:	chars.c ../libshapes.o ../oglinit.o
 	$(CC) $(CCOPTS) $(INCLUDEFLAGS) -o  chars chars.c ../libshapes.o ../oglinit.o $(LIBFLAGS)

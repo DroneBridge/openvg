@@ -12,7 +12,8 @@ extern "C" {
 		int Count;
 		int descender_height;
 		int ascender_height;
-		VGPath Glyphs[500];
+                VGFont vgfont;
+//		VGPath Glyphs[500];
 	} Fontinfo_T;
         typedef struct Fontinfo_T* Fontinfo;
 

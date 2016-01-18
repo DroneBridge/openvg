@@ -7,6 +7,7 @@
 //
 #include <stdio.h>
 #include <stdlib.h>
+#include <wchar.h>
 #include <termios.h>
 #include <assert.h>
 #include <jpeglib.h>
@@ -27,6 +28,12 @@ static int init_x = 0;		// Initial window position and size
 static int init_y = 0;
 static unsigned int init_w = 0;
 static unsigned int init_h = 0;
+
+// hold the current glyph representation of a string to print. Memory
+// is allocated by the stringToGlyph function, will grow when a longer
+// string is converted.
+static VGuint *glyph_string = NULL;
+
 //
 // Terminal settings
 //
@@ -69,26 +76,31 @@ Fontinfo loadfont(const int *Points,
 
 	Fontinfo f;
 	int i;
-
-                //memset(f.Glyphs, 0, MAXFONTPATH * sizeof(VGPath));
-        f = calloc(1, sizeof(Fontinfo_T));
-        assert(f != NULL);
+        VGFont font;
         
-	if (ng > MAXFONTPATH) {
-		return f;
-	}
+        f = calloc(1, sizeof *f);
+        assert(f != NULL);
+        f->vgfont = font = vgCreateFont(0);
+        assert(font != VG_INVALID_HANDLE);
+        
 	for (i = 0; i < ng; i++) {
 		const int *p = &Points[PointIndices[i] * 2];
 		const unsigned char *instructions = &Instructions[InstructionIndices[i]];
 		int ic = InstructionCounts[i];
-		VGPath path = vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_S_32,
+                VGfloat origin[2] = { 0.0f, 0.0f };
+                VGfloat escapement[2] = { 0.0f, 0.0f };
+                VGPath path = vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_S_32,
 					   1.0f / 65536.0f, 0.0f, 0, 0,
 					   VG_PATH_CAPABILITY_APPEND_TO);
-		f->Glyphs[i] = path;
-		if (ic) {
+
+                if (ic) {
 			vgAppendPathData(path, ic, instructions, p);
-		}
-	}
+                }
+                escapement[0] = (VGfloat)(adv[i]) / 65536.0f;
+                vgSetGlyphToPath(font, i, path, VG_FALSE, origin, escapement);
+                vgDestroyPath(path);
+        }
+        
 	f->CharacterMap = cmap;
 	f->GlyphAdvances = adv;
 	f->Count = ng;
@@ -99,14 +111,8 @@ Fontinfo loadfont(const int *Points,
 
 // unloadfont frees font path data
 void unloadfont(Fontinfo f) {
-        VGPath *glyphs;
-        int i;
-
         if (f) {
-                glyphs = &(f->Glyphs[0]);
-                for (i = 0; i < f->Count; i++) {
-                        vgDestroyPath(glyphs[i]);
-                }
+                vgDestroyFont(f->vgfont);
                 free(f);
         }
 }
@@ -472,67 +478,102 @@ unsigned char *next_utf8_char(unsigned char *utf8, int *codepoint) {
 	return p;
 }
 
+// stringToGlyphs converts a string into a list of glyphs
+//   It auto allocates memory to store the glyph list and reuses it
+//   for future convertions, growing it if need be. Assumes at most
+//   that 1 char converts to 1 int (usually less as multibyte strings
+//   convert several chars into one int).
+int stringToGlyphs(const char *s, Fontinfo f)
+{
+        static int glyph_length = 0;     // number of valid glyphs in string
+        static int glyph_string_len = 0; // size of allocated buffer
+                // cache, if we are passed glyph_string then it's
+                // because TextMid & TextEnd have already called here
+                // and we don't want to parse it again.
+        if (s == (char *)glyph_string) {
+                return glyph_length;
+        }
+        
+        mbstate_t state;
+        memset(&state, 0, sizeof state);
+        int str_length = mbsrtowcs(NULL, &s, 0, &state) + 1;
+        if (str_length > glyph_string_len) {
+                if (glyph_string) {
+                        free(glyph_string);
+                }
+                glyph_string_len = str_length;
+                glyph_string = malloc(glyph_string_len * sizeof *glyph_string);
+        }
+        wchar_t wstr[str_length];
+        mbsrtowcs(wstr, &s, str_length, &state);
+        glyph_length = 0;
+        int i;
+        for (i = 0; i < str_length; i++) {
+                VGuint glyph = f->CharacterMap[wstr[i]];
+                if (glyph != -1) {
+                        glyph_string[glyph_length++] = glyph;
+                }
+        }
+        return glyph_length;
+}
+
 // Text renders a string of text at a specified location, size, using the specified font glyphs
-// derived from http://web.archive.org/web/20070808195131/http://developer.hybrid.fi/font2openvg/renderFont.cpp.txt
-void Text(VGfloat x, VGfloat y, char *s, Fontinfo f, int pointsize) {
-	VGfloat size = (VGfloat) pointsize, xx = x, mm[9];
-	vgGetMatrix(mm);
-	int character;
-	unsigned char *ss = (unsigned char *)s;
-	while ((ss = next_utf8_char(ss, &character)) != NULL) {
-		int glyph = f->CharacterMap[character];
-		if (glyph == -1) {
-			continue;			   //glyph is undefined
-		}
-		VGfloat mat[9] = {
-			size, 0.0f, 0.0f,
-			0.0f, size, 0.0f,
-			xx, y, 1.0f
-		};
-		vgLoadMatrix(mm);
-		vgMultMatrix(mat);
-		vgDrawPath(f->Glyphs[glyph], VG_FILL_PATH);
-		xx += size * f->GlyphAdvances[glyph] / 65536.0f;
-	}
-	vgLoadMatrix(mm);
+void Text(VGfloat x, VGfloat y, const char *s, Fontinfo f, int pointsize)
+{
+        VGfloat size = (VGfloat)pointsize;
+        VGfloat matrix[9];
+        vgGetMatrix(matrix);
+        VGint mm = vgGeti(VG_MATRIX_MODE);
+        vgSeti(VG_MATRIX_MODE, VG_MATRIX_GLYPH_USER_TO_SURFACE);
+        vgLoadMatrix(matrix);
+        vgTranslate(x, y);
+        vgScale(size, size);
+        vgSeti(VG_MATRIX_MODE, mm);
+        VGfloat pos[2] = { 0.0f, 0.0f };
+        vgSetfv(VG_GLYPH_ORIGIN, 2, pos);
+
+        int count = stringToGlyphs(s, f);
+        if (count) {
+                vgDrawGlyphs(f->vgfont, count, glyph_string, NULL, NULL, VG_FILL_PATH | VG_STROKE_PATH, VG_TRUE);
+        }
 }
 
 // TextWidth returns the width of a text string at the specified font and size.
-VGfloat TextWidth(char *s, Fontinfo f, int pointsize) {
-	VGfloat tw = 0.0;
-	VGfloat size = (VGfloat) pointsize;
-	int character;
-	unsigned char *ss = (unsigned char *)s;
-	while ((ss = next_utf8_char(ss, &character)) != NULL) {
-		int glyph = f->CharacterMap[character];
-		if (glyph == -1) {
-			continue;			   //glyph is undefined
-		}
-		tw += size * f->GlyphAdvances[glyph] / 65536.0f;
+VGfloat TextWidth(const char *s, Fontinfo f, int pointsize) {
+        VGfloat pos[2] = { 0.0f, 0.0f };
+        int count = stringToGlyphs(s, f);
+        if (count) {
+                vgSetfv(VG_GLYPH_ORIGIN, 2, pos);
+                vgDrawGlyphs(f->vgfont, count, glyph_string, NULL, NULL, 0, VG_TRUE);
+                vgGetfv(VG_GLYPH_ORIGIN, 2, pos);
 	}
-	return tw;
+	return pos[0] * (VGfloat)pointsize;
 }
 
+// In TextMid and TextEnd we pass glyph_string directly to Text as
+// TextWidth has alreay parsed the string. Saves parsing it twice when we
+// know that it cannot have changed.
+
 // TextMid draws text, centered on (x,y)
-void TextMid(VGfloat x, VGfloat y, char *s, Fontinfo f, int pointsize) {
+void TextMid(VGfloat x, VGfloat y, const char *s, Fontinfo f, int pointsize) {
 	VGfloat tw = TextWidth(s, f, pointsize);
-	Text(x - (tw / 2.0), y, s, f, pointsize);
+	Text(x - (tw / 2.0f), y, (char*)glyph_string, f, pointsize);
 }
 
 // TextEnd draws text, with its end aligned to (x,y)
-void TextEnd(VGfloat x, VGfloat y, char *s, Fontinfo f, int pointsize) {
+void TextEnd(VGfloat x, VGfloat y, const char *s, Fontinfo f, int pointsize) {
 	VGfloat tw = TextWidth(s, f, pointsize);
-	Text(x - tw, y, s, f, pointsize);
+	Text(x - tw, y, (char*)glyph_string, f, pointsize);
 }
 
 // TextHeight reports a font's height
 VGfloat TextHeight(Fontinfo f, int pointsize) {
-	return (f->ascender_height * pointsize) / 65536;
+	return (VGfloat)(f->ascender_height * pointsize) / 65536.0f;
 }
 
 // TextDepth reports a font's depth (how far under the baseline it goes)
 VGfloat TextDepth(Fontinfo f, int pointsize) {
-	return (-f->descender_height * pointsize) / 65536;
+	return (VGfloat)(-f->descender_height * pointsize) / 65536.0f;
 }
 
 //

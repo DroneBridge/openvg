@@ -8,10 +8,10 @@ extern "C" {
 	extern void Rotate(VGfloat);
 	extern void Shear(VGfloat, VGfloat);
 	extern void Scale(VGfloat, VGfloat);
-	extern void Text(VGfloat, VGfloat, char *, Fontinfo, int);
-	extern void TextMid(VGfloat, VGfloat, char *, Fontinfo, int);
-	extern void TextEnd(VGfloat, VGfloat, char *, Fontinfo, int);
-	extern VGfloat TextWidth(char *, Fontinfo, int);
+	extern void Text(VGfloat, VGfloat, const char *, Fontinfo, int);
+	extern void TextMid(VGfloat, VGfloat, const char *, Fontinfo, int);
+	extern void TextEnd(VGfloat, VGfloat, const char *, Fontinfo, int);
+	extern VGfloat TextWidth(const char *, Fontinfo, int);
 	extern void Cbezier(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat);
 	extern void Qbezier(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat);
 	extern void Polygon(VGfloat *, VGfloat *, VGint);
@@ -53,6 +53,7 @@ extern "C" {
 	extern void initWindowSize(int x, int y, unsigned int w, unsigned int h);
 	extern VGfloat TextHeight(Fontinfo f, int pointsize);
 	extern VGfloat TextDepth(Fontinfo f, int pointsize);
+        
 	extern void AreaClear(unsigned int x, unsigned int y, unsigned int w, unsigned int h);
 	extern void WindowClear();
 	extern void WindowOpacity(unsigned int alpha);
