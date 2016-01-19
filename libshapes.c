@@ -23,7 +23,7 @@
 #include "shapes.h"	   // Needed to check prototypes
 
 static STATE_T _state, *state = &_state;	// global graphics state
-static const int MAXFONTPATH = 500;
+//static const int MAXFONTPATH = 500;
 static int init_x = 0;		// Initial window position and size
 static int init_y = 0;
 static unsigned int init_w = 0;
@@ -106,7 +106,8 @@ Fontinfo loadfont(const int *Points,
 	f->Count = ng;
 	f->descender_height = descender;
 	f->ascender_height = ascender;
-	return f;
+        f->AutoHint = VG_TRUE;
+        return f;
 }
 
 // unloadfont frees font path data
@@ -116,6 +117,13 @@ void unloadfont(Fontinfo f) {
                 free(f);
         }
 }
+
+// FontAutoHint sets whether the glyph drawing auto-hints fonts
+void FontAutoHint(Fontinfo f, int autohint)
+{
+        f->AutoHint = (autohint == 0 ? VG_FALSE : VG_TRUE);
+}
+
 
 // createImageFromJpeg decompresses a JPEG image to the standard image format
 // source: https://github.com/ileben/ShivaVG/blob/master/examples/test_image.c
@@ -453,43 +461,17 @@ void ClipEnd() {
 
 // Text Functions
 
-// next_utf_char handles UTF encoding
-unsigned char *next_utf8_char(unsigned char *utf8, int *codepoint) {
-	int seqlen;
-	int datalen = (int)strlen((const char *)utf8);
-	unsigned char *p = utf8;
-
-	if (datalen < 1 || *utf8 == 0) {		   // End of string
-		return NULL;
-	}
-	if (!(utf8[0] & 0x80)) {			   // 0xxxxxxx
-		*codepoint = (wchar_t) utf8[0];
-		seqlen = 1;
-	} else if ((utf8[0] & 0xE0) == 0xC0) {		   // 110xxxxx 
-		*codepoint = (int)(((utf8[0] & 0x1F) << 6) | (utf8[1] & 0x3F));
-		seqlen = 2;
-	} else if ((utf8[0] & 0xF0) == 0xE0) {		   // 1110xxxx
-		*codepoint = (int)(((utf8[0] & 0x0F) << 12) | ((utf8[1] & 0x3F) << 6) | (utf8[2] & 0x3F));
-		seqlen = 3;
-	} else {
-		return NULL;				   // No code points this high here
-	}
-	p += seqlen;
-	return p;
-}
-
 // stringToGlyphs converts a string into a list of glyphs
 //   It auto allocates memory to store the glyph list and reuses it
-//   for future convertions, growing it if need be. Assumes at most
-//   that 1 char converts to 1 int (usually less as multibyte strings
-//   convert several chars into one int).
+//   for future convertions, growing it if need be.
 int stringToGlyphs(const char *s, Fontinfo f)
 {
         static int glyph_length = 0;     // number of valid glyphs in string
         static int glyph_string_len = 0; // size of allocated buffer
                 // cache, if we are passed glyph_string then it's
                 // because TextMid & TextEnd have already called here
-                // and we don't want to parse it again.
+                // when calculating the width and we don't want to
+                // parse it again.
         if (s == (char *)glyph_string) {
                 return glyph_length;
         }
@@ -509,9 +491,12 @@ int stringToGlyphs(const char *s, Fontinfo f)
         glyph_length = 0;
         int i;
         for (i = 0; i < str_length; i++) {
-                VGuint glyph = f->CharacterMap[wstr[i]];
-                if (glyph != -1) {
-                        glyph_string[glyph_length++] = glyph;
+                if (wstr[i] < f->Count) {
+                        VGuint glyph = f->CharacterMap[wstr[i]];
+                        if (glyph != -1) {
+                                glyph_string[glyph_length++] = glyph;
+                        }
+                        
                 }
         }
         return glyph_length;
@@ -531,10 +516,16 @@ void Text(VGfloat x, VGfloat y, const char *s, Fontinfo f, int pointsize)
         vgSeti(VG_MATRIX_MODE, mm);
         VGfloat pos[2] = { 0.0f, 0.0f };
         vgSetfv(VG_GLYPH_ORIGIN, 2, pos);
-
+        VGfloat strokew = vgGetf(VG_STROKE_LINE_WIDTH);
+        if (strokew != 0.0f) {
+                vgSetf(VG_STROKE_LINE_WIDTH, strokew/size);
+        }
         int count = stringToGlyphs(s, f);
         if (count) {
-                vgDrawGlyphs(f->vgfont, count, glyph_string, NULL, NULL, VG_FILL_PATH | VG_STROKE_PATH, VG_TRUE);
+                vgDrawGlyphs(f->vgfont, count, glyph_string, NULL, NULL, VG_FILL_PATH | VG_STROKE_PATH, f->AutoHint);
+        }
+        if (strokew != 0.0f) {
+                vgSetf(VG_STROKE_LINE_WIDTH, strokew);
         }
 }
 
@@ -544,7 +535,7 @@ VGfloat TextWidth(const char *s, Fontinfo f, int pointsize) {
         int count = stringToGlyphs(s, f);
         if (count) {
                 vgSetfv(VG_GLYPH_ORIGIN, 2, pos);
-                vgDrawGlyphs(f->vgfont, count, glyph_string, NULL, NULL, 0, VG_TRUE);
+                vgDrawGlyphs(f->vgfont, count, glyph_string, NULL, NULL, 0, f->AutoHint);
                 vgGetfv(VG_GLYPH_ORIGIN, 2, pos);
 	}
 	return pos[0] * (VGfloat)pointsize;

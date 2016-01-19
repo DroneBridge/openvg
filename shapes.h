@@ -51,7 +51,10 @@ extern "C" {
 
 	// Added by Paeryn
 	extern void initWindowSize(int x, int y, unsigned int w, unsigned int h);
-	extern VGfloat TextHeight(Fontinfo f, int pointsize);
+        extern Fontinfo LoadTTFFile(const char *fname);
+        extern Fontinfo LoadTTF(const char *font_style);
+        extern void FontAutoHint(Fontinfo f, int autohint);
+        extern VGfloat TextHeight(Fontinfo f, int pointsize);
 	extern VGfloat TextDepth(Fontinfo f, int pointsize);
         
 	extern void AreaClear(unsigned int x, unsigned int y, unsigned int w, unsigned int h);

@@ -13,7 +13,7 @@ extern "C" {
 		int descender_height;
 		int ascender_height;
                 VGFont vgfont;
-//		VGPath Glyphs[500];
+                VGboolean AutoHint;
 	} Fontinfo_T;
         typedef struct Fontinfo_T* Fontinfo;
 
