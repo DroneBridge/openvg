@@ -6,7 +6,7 @@ CC = $(CROSS_COMPILE)gcc
 CCOPTS = -std=gnu89 -O2 -Wall	# Problems with gcc5 defaulting to C99
 
 INCLUDEFLAGS=-I$(RPISDK)/opt/vc/include -I$(RPISDK)/opt/vc/include/interface/vmcs_host/linux -I$(RPISDK)/opt/vc/include/interface/vcos/pthreads -fPIC
-LIBFLAGS=-L$(RPISDK)/opt/vc/lib -lGLESv2 -lEGL -ljpeg
+LIBFLAGS=-L$(RPISDK)/opt/vc/lib -lEGL -lGLESv2 -ljpeg
 FONTLIB=/usr/share/fonts/truetype/ttf-dejavu
 FONTFILES=DejaVuSans.inc  DejaVuSansMono.inc DejaVuSerif.inc
 all:	font2openvg fonts library	
@@ -21,7 +21,7 @@ gopenvg:	openvg.go
 	go install .
 
 oglinit.o:	oglinit.c
-	$(CC) $(INCLUDEFLAGS) -c oglinit.c
+	$(CC) $(CCOPTS) $(INCLUDEFLAGS) -c oglinit.c
 
 font2openvg:	fontutil/font2openvg.cpp
 	g++ -I/usr/include/freetype2 fontutil/font2openvg.cpp -o font2openvg -lfreetype

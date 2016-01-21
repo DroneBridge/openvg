@@ -51,9 +51,26 @@ int main(int argc, char *argv[]) {
 	FontAutoHint(myfont, 1);
 	Text(20, 20, "`1234567890-=qwertyuiop[]asdfghjkl;'#\\zxcvbnm,./", myfont, 24);
 	Text(20, 50, "¬!\"£$%^&*()_+QWERTYUIOP{}ASDFGHJKL:@~|ZXCVBNM<>?", myfont, 24);
+                // TextLineHeight() returns the font's suggested
+                // height to the next baseline. Built-in fonts and
+                // those loaded with the old method have this
+                // defaulting to TextHeight+TextDepth+1
+                
+                // Test Kerning. Only allowable on the new font
+                // system, and if the font has kerning data. Safe to
+                // try setting on old fonts - it ignores it.
+        FontKerning(myfont, 0);
+        Text(20, 80, "WAW", myfont, 48);
+        FontKerning(myfont, 1);
+        Text(20, 80+TextLineHeight(myfont,48), "WAW", myfont, 48);
 	End();						   // End the picture
 
 	fgets(s, 2, stdin);				   // look at the pic, end with [RETURN]
-	finish();					   // Graphics cleanup
+
+                // unloadfont safely handles new fonts, it will call
+                // the correct UnloadTTF() function for you.
+        unloadfont(myfont);
+        
+        finish();					   // Graphics cleanup
 	exit(0);
 }

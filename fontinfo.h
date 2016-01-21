@@ -10,10 +10,15 @@ extern "C" {
 		const short *CharacterMap;
 		const int *GlyphAdvances;
 		int Count;
-		int descender_height;
-		int ascender_height;
-                VGFont vgfont;
-                VGboolean AutoHint;
+		VGfloat DescenderHeight; // How far below baseline (-ve)
+		VGfloat AscenderHeight;  // How far above baseline
+                VGfloat Height;          // How far between baselines
+                const char *Name;        // Name of font family
+                const char *Style;       // Name of font style
+                int Kerning;             // Apply kerning to text
+                VGboolean AutoHint;      // Allow autohinting font
+                VGFont vgfont;           // Private
+                void *face;              // Private
 	} Fontinfo_T;
         typedef struct Fontinfo_T* Fontinfo;
 

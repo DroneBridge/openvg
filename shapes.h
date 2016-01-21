@@ -53,9 +53,12 @@ extern "C" {
 	extern void initWindowSize(int x, int y, unsigned int w, unsigned int h);
         extern Fontinfo LoadTTFFile(const char *fname);
         extern Fontinfo LoadTTF(const char *font_style);
+        extern void UnloadTTF(Fontinfo f);
         extern void FontAutoHint(Fontinfo f, int autohint);
+        extern void FontKerning(Fontinfo f, int kerning);
         extern VGfloat TextHeight(Fontinfo f, int pointsize);
 	extern VGfloat TextDepth(Fontinfo f, int pointsize);
+        extern VGfloat TextLineHeight(Fontinfo f, int pointsize);
         
 	extern void AreaClear(unsigned int x, unsigned int y, unsigned int w, unsigned int h);
 	extern void WindowClear();

@@ -15,137 +15,147 @@
 // Freetype library, set globally so I only open it once
 static FT_Library ft_library = NULL;
 
-// Fontconfig library, set globally so I only open it once
-static FcConfig *fc_config = NULL;
-
-typedef struct fcoord_T {
-        float x, y;
-} fcoord_T;
+typedef struct scoord_T {
+        short x, y;
+} scoord_T;
 
 typedef struct paths_T {
         int cpos;
         int spos;
         int max_coords;
-        int max_segs;
-        fcoord_T *coords;
-        VGubyte *segs;
+        int max_segments;
+        scoord_T *coords;
+        VGubyte *segments;
+        int error;
 } paths_T;
 
-static paths_T paths;
-
-static void alloc_paths()
+// Pre-allocate space for 1024 points and 256 segments. This should be
+// plenty for normal use. Returns 0 if there wasn't any memory available.
+static int alloc_paths(paths_T *paths)
 {
-        paths.cpos = paths.spos = 0;
-        paths.coords = malloc(1024 * sizeof *paths.coords);
-        paths.max_coords = 1024;
-        paths.segs = malloc(256 * sizeof *paths.segs);
-        paths.max_segs = 256;
-}
-
-static void free_paths()
-{
-        if (paths.coords) {
-                free(paths.coords);
-                paths.coords = NULL;
+        paths->cpos = paths->spos = 0;
+        paths->coords = malloc(1024 * sizeof *paths->coords);
+        if (paths->coords) {
+                paths->max_coords = 1024;
+                paths->segments = malloc(256 * sizeof *paths->segments);
+                if (paths->segments) {
+                        paths->max_segments = 256;
+                        return -1;
+                }
+                free(paths->coords);
         }
-        if (paths.segs) {
-                free(paths.segs);
-                paths.segs = NULL;
+        return 0;
+}
+
+static void free_paths(paths_T *paths)
+{
+        if (paths->coords)
+                free(paths->coords);
+        if (paths->segments)
+                free(paths->segments);
+}
+
+static int add_path_coords(paths_T *path, int num)
+{
+        int size = path->max_coords;
+        int cpos = path->cpos;
+        path->cpos += num;
+        if (path->cpos >= size) {
+                scoord_T *mem = realloc(path->coords, (size + 256) * sizeof *path->coords);
+                if (mem) {
+                        path->coords = mem;
+                        path->max_coords = size + 256;
+                }
+                else {
+                        cpos = -1;
+                }
         }
+        return cpos;
 }
 
-static void paths_more_coords()
+static int add_path_segments(paths_T *path, int num)
 {
-        int size = paths.max_coords;
-        paths.coords = realloc(paths.coords, (size + 256) * sizeof *paths.coords);
-        if (paths.coords) {
-                paths.max_coords = size + 256;
+        int size = path->max_segments;
+        int spos = path->spos;
+        path->spos += num;
+        if (path->spos >= size) {
+                VGubyte *mem = realloc(path->segments, (size + 64) * sizeof *path->segments);
+                if (mem) {
+                        path->segments = mem;
+                        path->max_segments = size + 64;
+                }
+                else {
+                        spos = -1;
+                }
         }
+        return spos;
 }
 
-static void paths_more_segs()
-{
-        int size = paths.max_segs;
-        paths.segs = realloc(paths.segs, (size + 64) * sizeof *paths.segs);
-        if (paths.segs) {
-                paths.max_segs = size + 64;
-        }
-}
-
-static inline float Fixed26ToFloat(FT_Int fix)
-{
-        return (float)fix / 64.0f;
-}
-
-static inline float Fixed12ToFloat(FT_Int fix)
-{
-        return (float)fix / 4096.0f;
-}
-
-// Functions used in decomposing freetype outlines.
 static int ft_move_to(const FT_Vector *to, paths_T *outline)
 {
-        int spos = outline->spos++;
-        int cpos = outline->cpos++;
-        if (cpos >= outline->max_coords)
-                paths_more_coords();
-        if (spos >= outline->max_segs)
-                paths_more_segs();
-        outline->coords[cpos].x = Fixed12ToFloat(to->x);
-        outline->coords[cpos].y = Fixed12ToFloat(to->y);
-        outline->segs[spos] = VG_MOVE_TO;
+        int spos = add_path_segments(outline, 1);
+        if (spos < 0)
+                return -1;
+        outline->segments[spos] = VG_MOVE_TO;
+        
+        int cpos = add_path_coords(outline, 1);
+        if (cpos < 0)
+                return -1;
+        outline->coords[cpos].x = to->x;
+        outline->coords[cpos].y = to->y;
         return 0;
 }
 
 static int ft_line_to(const FT_Vector *to, paths_T *outline)
 {
-        int spos = outline->spos++;
-        int cpos = outline->cpos++;
-        if (cpos >= outline->max_coords)
-                paths_more_coords();
-        if (spos >= outline->max_segs)
-                paths_more_segs();
-        outline->coords[cpos].x = Fixed12ToFloat(to->x);
-        outline->coords[cpos].y = Fixed12ToFloat(to->y);
-        outline->segs[spos] = VG_LINE_TO;
+        int spos = add_path_segments(outline, 1);
+        if (spos < 0)
+                return -1;
+        outline->segments[spos] = VG_LINE_TO;
+
+        int cpos = add_path_coords(outline, 1);
+        if (cpos < 0)
+                return -1;
+        outline->coords[cpos].x = to->x;
+        outline->coords[cpos].y = to->y;
         return 0;
 }
 
 static int ft_conic_to(const FT_Vector *control, const FT_Vector *to,
                        paths_T *outline)
 {
-        int spos = outline->spos++;
-        int cpos = outline->cpos;
-        outline->cpos += 2;
-        if (outline->cpos >= outline->max_coords)
-                paths_more_coords();
-        if (spos >= outline->max_segs)
-                paths_more_segs();
-        outline->coords[cpos].x = Fixed12ToFloat(control->x);
-        outline->coords[cpos].y = Fixed12ToFloat(control->y);
-        outline->coords[cpos+1].x = Fixed12ToFloat(to->x);
-        outline->coords[cpos+1].y = Fixed12ToFloat(to->y);
-        outline->segs[spos] = VG_QUAD_TO;
+        int spos = add_path_segments(outline, 1);
+        if (spos < 0)
+                return -1;
+        outline->segments[spos] = VG_QUAD_TO;
+        
+        int cpos = add_path_coords(outline, 2);
+        if (cpos < 0)
+                return -1;
+        outline->coords[cpos].x = control->x;
+        outline->coords[cpos].y = control->y;
+        outline->coords[cpos+1].x = to->x;
+        outline->coords[cpos+1].y = to->y;
         return 0;
 }
 
 static int ft_cubic_to(const FT_Vector *ctrl1, const FT_Vector *ctrl2,
                         const FT_Vector *to, paths_T *outline)
 {
-        int spos = outline->spos++;
-        int cpos = outline->cpos;
-        outline->cpos += 3;
-        if (outline->cpos >= outline->max_coords)
-                paths_more_coords();
-        if (spos >= outline->max_segs)
-                paths_more_segs();
-        outline->coords[cpos].x = Fixed12ToFloat(ctrl1->x);
-        outline->coords[cpos++].y = Fixed12ToFloat(ctrl1->y);
-        outline->coords[cpos].x = Fixed12ToFloat(ctrl2->x);
-        outline->coords[cpos++].y = Fixed12ToFloat(ctrl2->y);
-        outline->coords[cpos].x = Fixed12ToFloat(to->x);
-        outline->coords[cpos].y = Fixed12ToFloat(to->y);
-        outline->segs[spos] = VG_CUBIC_TO;
+        int spos = add_path_segments(outline, 1);
+        if (spos < 0)
+                return -1;
+        outline->segments[spos] = VG_CUBIC_TO;
+
+        int cpos = add_path_coords(outline, 3);
+        if (cpos < 0)
+                return -1;
+        outline->coords[cpos].x = ctrl1->x;
+        outline->coords[cpos].y = ctrl1->y;
+        outline->coords[cpos+1].x = ctrl2->x;
+        outline->coords[cpos+1].y = ctrl2->y;
+        outline->coords[cpos+2].x = to->x;
+        outline->coords[cpos+2].y = to->y;
         return 0;
 }
 
@@ -160,102 +170,117 @@ FT_Outline_Funcs funcs = {
 // LoadTTFFile() loads a TTF from named file
 Fontinfo LoadTTFFile(const char *filename)
 {
-        Fontinfo font;
-	FT_Face face;
-        VGfloat origin[2] = { 0.0f, 0.0f };
-        VGfloat escapement[2] = { 0.0f, 0.0f };
-
+        int error = 0;
         if (ft_library == NULL) {
-                if (FT_Init_FreeType(&ft_library)) {
+                if (FT_Init_FreeType(&ft_library))
                         return NULL;
-                }
         }
-
+	FT_Face face;
         int faceIndex = 0;
-	if (FT_New_Face(ft_library, filename, faceIndex, &face)) {
-		return NULL;
-	}
+	if (FT_New_Face(ft_library, filename, faceIndex, &face))
+                return NULL;
 
                 // TODO: Fail loading bitmap fonts for now.
         if (!FT_IS_SCALABLE(face)) {
                 FT_Done_Face(face);
                 return NULL;
         }
-        
-        font = calloc(1, sizeof *font);
-        assert(font != NULL);
-        
-	FT_Set_Char_Size(
-              face,   /* handle to face object           */
-              64*64,  /* char_width in 1/64th of points  */
-              0,      /* char_height in 1/64th of points */
-              96,     /* horizontal device resolution    */
-              96 );   /* vertical device resolution      */
+        FT_Set_Char_Size(
+              face,   // handle to face object
+              64*64,  // char_width in 1/64th of points
+              0,      // char_height in 1/64th of points
+              96,     // horizontal device resolution
+              96 );   // vertical device resolution
 
-        font->descender_height = face->size->metrics.descender / 64;
-        font->ascender_height = face->size->metrics.ascender / 64;
+        Fontinfo font = calloc(1, sizeof *font);
+        if (font == NULL) {
+                FT_Done_Face(face);
+                return NULL;
+        }
+        font->face = (void*)face;
+        font->Name = face->family_name;
+        font->Style = face->style_name;
+        font->DescenderHeight = (VGfloat)face->size->metrics.descender /4096.0f;
+        font->AscenderHeight = (VGfloat)face->size->metrics.ascender / 4096.f;
+        font->Height = (VGfloat)face->size->metrics.height / 4096.f;
         font->AutoHint = VG_FALSE;
-//        font->height = face->size->metrics.height / 64;
+        font->Kerning = FT_HAS_KERNING(face);
+        
+        paths_T paths;
+        if (!alloc_paths(&paths)) {
+                FT_Done_Face(face);
+                return NULL;
+        }
 
-        alloc_paths();
         FT_Long numGlyphs = face->num_glyphs;
         font->Count = numGlyphs;
-        short  *cmap = malloc(numGlyphs * sizeof *cmap);
-        font->CharacterMap = cmap;
+        font->CharacterMap = NULL;  // Indicate that we use FT's charmap
         font->vgfont = vgCreateFont(0);
-        
-        int cc, glyphs = 0;
-        for (cc = 0; cc < 32; cc++)
-                cmap[cc] = -1;
-        for (cc = 32; cc < numGlyphs; cc++) {
-                cmap[cc] = -1;
-                FT_ULong glyphIndex = FT_Get_Char_Index(face, cc);
-                if (!FT_Load_Glyph(face, glyphIndex, FT_LOAD_NO_BITMAP | FT_LOAD_NO_HINTING | FT_LOAD_IGNORE_TRANSFORM)) {
-                        escapement[0] = Fixed12ToFloat(face->glyph->advance.x);
-                        if (cc == ' ') {
-                                
-                                cmap[cc] = glyphs++;
-                                continue;
-                        }
+        if (font->vgfont == VG_INVALID_HANDLE) {
+                free_paths(&paths);
+                FT_Done_Face(face);
+                return NULL;
+        }
 
+        VGfloat origin[2] = { 0.0f, 0.0f };
+        VGfloat escapement[2] = { 0.0f, 0.0f };
+        int cc;
+        for (cc = 0; cc < numGlyphs; cc++) {
+                if (!FT_Load_Glyph(face, cc, FT_LOAD_NO_BITMAP | FT_LOAD_NO_HINTING | FT_LOAD_IGNORE_TRANSFORM)) {
+                        escapement[0] = (float)face->glyph->linearHoriAdvance / (64.0f*65536.0f);
                         paths.cpos = paths.spos = 0;
                         FT_Outline *outline = &face->glyph->outline;
-                        FT_Outline_Decompose(outline, &funcs, &paths);
-                        VGPath path = vgCreatePath(VG_PATH_FORMAT_STANDARD,
-                                                   VG_PATH_DATATYPE_F,
-                                                   1.0f, 0.0f, 0, 0,
-                                                   VG_PATH_CAPABILITY_APPEND_TO);
-                        vgAppendPathData(path, paths.spos, paths.segs, paths.coords);
-                        vgSetGlyphToPath(font->vgfont, glyphs, path, VG_FALSE, origin, escapement);
-                        vgDestroyPath(path);
-                        cmap[cc] = glyphs++;
+                        if (FT_Outline_Decompose(outline, &funcs, &paths)) {
+                                error = 1;
+                                break;
+                        }
+                        if (paths.spos) {
+                                VGPath path = vgCreatePath(VG_PATH_FORMAT_STANDARD,
+                                                           VG_PATH_DATATYPE_S_16,
+                                                           1.0f/4096.0f, 0.0f, 0, 0,
+                                                           VG_PATH_CAPABILITY_APPEND_TO);
+                                vgAppendPathData(path, paths.spos, paths.segments, paths.coords);
+                                vgSetGlyphToPath(font->vgfont, cc, path, VG_FALSE, origin, escapement);
+                                vgDestroyPath(path);
+                        }
+                        else {  // No glyph image, set to blank
+                                vgSetGlyphToPath(font->vgfont, cc, VG_INVALID_HANDLE, VG_FALSE, origin, escapement);
+                        }
                 }
         }
-        free_paths();
-        FT_Done_Face(face);
+        free_paths(&paths);
+        if (error) {
+                UnloadTTF(font);
+                font = NULL;
+        }
+        
         return font;
 }
 
+// UnloadTTF unloads a font created by LoadTTF
+void UnloadTTF(Fontinfo f)
+{
+        if (f) {
+                if (f->face)
+                        FT_Done_Face(f->face);
+                if (f->vgfont)
+                        vgDestroyFont(f->vgfont);
+                free(f);
+        }
+}
 
 // LoadTTF() - Loads a font given a name.
 //   name is e.g. "DejaVu:monospace"
 Fontinfo LoadTTF(const char *name)
 {
-        char *fontFile;
+        char *fontFile = "/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans.ttf";
 
-        fontFile = "/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans.ttf";
-        
-        if (fc_config == NULL) {
-                fc_config = FcInitLoadConfigAndFonts();
-        }
-
+        FcConfig *fc_config = FcInitLoadConfigAndFonts();
         if (fc_config) {
-                        // configure the search pattern, 
                 FcPattern *pattern = FcNameParse((FcChar8*)name);
                 FcConfigSubstitute(fc_config, pattern, FcMatchPattern);
                 FcDefaultSubstitute(pattern);
                 
-                        // find the font
                 FcResult result;
                 FcPattern *font = FcFontMatch(fc_config, pattern, &result);
                 if (font) {
@@ -268,21 +293,64 @@ Fontinfo LoadTTF(const char *name)
                 
                 FcPatternDestroy(pattern);
         }
-
+        FcConfigDestroy(fc_config);
         return LoadTTFFile(fontFile);
 }
 
-// closeFontSystem() - Close and free data used by freetype2 &
-// fontconfig if they were opened
-void closeFontSystem()
+// closeFontSystem() - Close and free data used by freetype2
+void font_CloseFontSystem()
 {
-        if (fc_config) {
-                FcFini();
-                fc_config = NULL;
-        }
-
         if (ft_library != NULL) {
                 FT_Done_FreeType(ft_library);
                 ft_library = NULL;
         }
+}
+
+// Converting character codes to glyph codes. Also fills in kerning
+// data between this and "prev" glyph if kern is non-null.
+// kern is a two element array of floats.
+unsigned int font_CharToGlyph(void *face, unsigned long code)
+{
+        unsigned int glyph = (unsigned int)FT_Get_Char_Index((FT_Face)face, (FT_ULong)code);
+        return glyph;
+}
+
+
+void font_KernData(void *face, unsigned long curr, unsigned long prev,
+                   VGfloat *kernX, VGfloat *kernY) 
+{
+        if (kernX) {
+                if (prev != 0xffffffff) {
+                        FT_Vector kern;
+                        FT_Get_Kerning((FT_Face)face, prev, curr, FT_KERNING_DEFAULT, &kern);
+                        *kernX = (VGfloat)kern.x / 4096.f;
+                        *kernY = (VGfloat)kern.y / 4096.f;
+                }
+                else {
+                        *kernX = 0.0f;
+                        *kernY = 0.0f;
+                }
+        }
+}
+
+// FontKerning sets whether font will have kerning enabled.
+//   If the font doesn't have kerning data then it will have no
+//   effect. Doesn't work on the old font system (loadfont, default fonts).
+void FontKerning(Fontinfo f, int value)
+{
+        if (f) {
+                if ((f->face) && value) {
+                        FT_Face face = (FT_Face)(f->face);
+                        f->Kerning = FT_HAS_KERNING(face);
+                }
+                else
+                        f->Kerning = 0;
+        }
+}
+                
+// FontAutoHint sets whether the glyph drawing auto-hints fonts.
+// NB: Not sure if the RPi takes any notice of this.
+void FontAutoHint(Fontinfo f, int autohint)
+{
+        f->AutoHint = (autohint == 0 ? VG_FALSE : VG_TRUE);
 }
