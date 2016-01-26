@@ -71,6 +71,14 @@ extern "C" {
 	extern void EllipseOutline(VGfloat, VGfloat, VGfloat, VGfloat);
 	extern void CircleOutline(VGfloat, VGfloat, VGfloat);
 	extern void ArcOutline(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat);
+
+                // Shapes error values
+        typedef enum shapesErrorCode {
+                SHAPES_QUIET = -1,
+                SHAPES_NO_ERROR = 0,
+                SHAPES_NO_FONT_ERROR = 0x5000
+        } shapesErrorCode;
+        extern shapesErrorCode vg_error;
 #if defined(__cplusplus)
 }
 #endif

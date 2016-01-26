@@ -22,6 +22,8 @@
 #include "fontinfo.h"					   // font data structure
 #include "shapes.h"	   // Needed to check prototypes
 
+#define error(string) fprintf(stderr, "Error in %s @ %d: %s\n", __FILE__, __LINE__, string);
+
 // Bring these functions in from fontsystem.c
 // Don't want to expose the functions to external programs.
 extern void font_CloseFontSystem();
@@ -41,6 +43,8 @@ static unsigned int init_h = 0;
 // glyph_kern holds the kerning tables of the string (2*float per glyph)
 static VGuint *glyph_string = NULL;
 static VGfloat *glyph_kern = NULL;
+
+shapesErrorCode vg_error = SHAPES_NO_ERROR;
 
 //
 // Terminal settings
@@ -86,7 +90,7 @@ Fontinfo loadfont(const int *Points,
         if (!f)
                 return NULL;
 
-        VGFont font = f->vgfont = vgCreateFont(0);
+        VGFont font = f->vgfont = vgCreateFont(ng);
         if (font == VG_INVALID_HANDLE) {
                 free(f);
                 return NULL;
@@ -101,9 +105,17 @@ Fontinfo loadfont(const int *Points,
                 VGPath path = VG_INVALID_HANDLE;
 		int ic = InstructionCounts[i];
                 if (ic) {
-                        path = vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_S_32,
-                                                   1.0f / 65536.0f, 0.0f, 0, 0,
-                                                   VG_PATH_CAPABILITY_APPEND_TO);
+                        int p_count;
+                        if (i < ng-1)
+                                p_count = PointIndices[i+1];
+                        else
+                                p_count = sizeof Points / sizeof *Points;
+                        p_count -= PointIndices[i];
+                        
+                        path = vgCreatePath(VG_PATH_FORMAT_STANDARD,
+                                            VG_PATH_DATATYPE_S_32,
+                                            1.0f / 65536.0f, 0.0f, ic, p_count,
+                                            VG_PATH_CAPABILITY_APPEND_TO);
                         vgAppendPathData(path, ic, instructions, p);
                 }
                 vgSetGlyphToPath(font, i, path, VG_FALSE, origin, escapement);
@@ -114,13 +126,12 @@ Fontinfo loadfont(const int *Points,
 	f->CharacterMap = cmap;
 	f->GlyphAdvances = adv;
 	f->Count = ng;
-	f->DescenderHeight = descender;
-	f->AscenderHeight = ascender;
+	f->DescenderHeight = (VGfloat)descender / 65536.0f;
+	f->AscenderHeight = (VGfloat)ascender / 65536.0f;
         f->Height = ascender - descender + 1; // Guesstimate
         f->Name = "unknown";
         f->Style = "unknown";
         f->Kerning = 0;
-        f->AutoHint = VG_FALSE;
         return f;
 }
 
@@ -290,9 +301,15 @@ void init(int *w, int *h) {
                                 DejaVuSans_glyphCount,
                                 DejaVuSans_descender_height,
                                 DejaVuSans_ascender_height);
-        SansTypeface->Name = "DejaVu Sans";
-        SansTypeface->Style = "Book";
-        
+        if (SansTypeface) {
+                SansTypeface->Name = "DejaVu Sans";
+                SansTypeface->Style = "Book";
+        }
+        else {
+                vg_error = SHAPES_NO_FONT_ERROR;
+                error("init() failed to create SansTypeface");
+        }
+                
 	SerifTypeface = loadfont(DejaVuSerif_glyphPoints,
 				 DejaVuSerif_glyphPointIndices,
 				 DejaVuSerif_glyphInstructions,
@@ -303,8 +320,14 @@ void init(int *w, int *h) {
                                  DejaVuSerif_glyphCount,
                                  DejaVuSerif_descender_height,
                                  DejaVuSerif_ascender_height);
-        SerifTypeface->Name = "DejaVu Serif";
-        SerifTypeface->Style = "Book";
+        if (SerifTypeface) {
+                SerifTypeface->Name = "DejaVu Serif";
+                SerifTypeface->Style = "Book";
+        }
+        else {
+                vg_error = SHAPES_NO_FONT_ERROR;
+                error("init() failed to create SerifTypeface");
+        }
         
 	MonoTypeface = loadfont(DejaVuSansMono_glyphPoints,
 				DejaVuSansMono_glyphPointIndices,
@@ -316,16 +339,22 @@ void init(int *w, int *h) {
                                 DejaVuSansMono_glyphCount,
                                 DejaVuSansMono_descender_height,
                                 DejaVuSansMono_ascender_height);
-        MonoTypeface->Name = "DejaVu Sans Mono";
-        MonoTypeface->Style = "Book";
-
+        if (MonoTypeface) {
+                MonoTypeface->Name = "DejaVu Sans Mono";
+                MonoTypeface->Style = "Book";
+        }
+        else {
+                vg_error = SHAPES_NO_FONT_ERROR;
+                error("init() failed to create MonoTypeface");
+        }
+        
 	*w = state->window_width;
 	*h = state->window_height;
 }
 
 // finish cleans up
 void finish() {
-	unloadfont(SansTypeface);
+        unloadfont(SansTypeface);
         SansTypeface = NULL;
 	unloadfont(SerifTypeface);
         SerifTypeface = NULL;
@@ -490,7 +519,6 @@ int stringToGlyphs(const char *s, Fontinfo f)
 {
         static int glyph_length = 0;     // number of valid glyphs in string
         static int glyph_string_len = 0; // size of allocated buffer
-        
         if (s == (char *)glyph_string) {
                 return glyph_length;
         }
@@ -527,17 +555,13 @@ int stringToGlyphs(const char *s, Fontinfo f)
         }
         else { // fontsystem fonts
                 VGuint prev = 0xffffffff;
-                VGfloat *kernX, *kernY;
-                int kerning = f->Kerning;
-                if (kerning) {
-                        kernX = &glyph_kern[0];
-                        kernY = &glyph_kern[str_length];
-                }
+                VGfloat *kernX = &glyph_kern[0];
+                VGfloat *kernY = &glyph_kern[str_length];
                 for (i = 0; i < str_length; i++) {
                         VGuint glyph = font_CharToGlyph(f->face, wstr[i]);
                         glyph_string[i] = glyph;
-                        if (kerning) {
-                                font_KernData(f->face, glyph, prev, kernX, kernY);
+                        if (f->Kerning) {
+                                font_KernData(f->face, glyph, prev, kernX++, kernY++);
                                 prev = glyph;
                         }
                 }
@@ -573,7 +597,7 @@ void Text(VGfloat x, VGfloat y, const char *s, Fontinfo f, int pointsize) {
                 else {
                         kernX = kernY = NULL;
                 }
-                vgDrawGlyphs(f->vgfont, count, glyph_string, kernX, kernY, VG_FILL_PATH | VG_STROKE_PATH, f->AutoHint);
+                vgDrawGlyphs(f->vgfont, count, glyph_string, kernX, kernY, VG_FILL_PATH | VG_STROKE_PATH, VG_FALSE);
         }
         if (strokew != 0.0f) {
                 vgSetf(VG_STROKE_LINE_WIDTH, strokew);
@@ -586,7 +610,15 @@ VGfloat TextWidth(const char *s, Fontinfo f, int pointsize) {
         int count = stringToGlyphs(s, f);
         if (count) {
                 vgSetfv(VG_GLYPH_ORIGIN, 2, pos);
-                vgDrawGlyphs(f->vgfont, count, glyph_string, NULL, NULL, 0, f->AutoHint);
+                VGfloat *kernX, *kernY;
+                if (f->Kerning) {
+                        kernX = &glyph_kern[0];
+                        kernY = &glyph_kern[count];
+                }
+                else {
+                        kernX = kernY = NULL;
+                }
+                vgDrawGlyphs(f->vgfont, count, glyph_string, kernX, kernY, 0, VG_FALSE);
                 vgGetfv(VG_GLYPH_ORIGIN, 2, pos);
 	}
 	return pos[0] * (VGfloat)pointsize;
@@ -711,7 +743,7 @@ void Roundrect(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat rw, VGfloat r
 
 // Ellipse makes an ellipse at the specified location and dimensions
 void Ellipse(VGfloat x, VGfloat y, VGfloat w, VGfloat h) {
-	VGPath path = newpath();
+        VGPath path = newpath();
 	vguEllipse(path, x, y, w, h);
 	vgDrawPath(path, VG_FILL_PATH | VG_STROKE_PATH);
 	vgDestroyPath(path);
@@ -735,16 +767,34 @@ void Start(int width, int height) {
 	VGfloat color[4] = { 1, 1, 1, 1 };
 	vgSetfv(VG_CLEAR_COLOR, 4, color);
 	vgClear(0, 0, width, height);
-	color[0] = 0, color[1] = 0, color[2] = 0;
+	color[0] = color[1] = color[2] = 0;
 	setfill(color);
 	setstroke(color);
 	StrokeWidth(0);
 	vgLoadIdentity();
 }
 
+const char *vg_error_msg[] = {
+        "BAD_HANDLE",
+        "ILLEGAL_ARGUMENT",
+        "OUT_OF_MEMORY",
+        "PATH_CAPABILITY",
+        "UNSUPPORTED_UMAGE_FORMAT",
+        "UNSUPPORTED_PATH_FORMAT",
+        "IMAGE_IN_USE"
+        "NO_CONTEXT"
+};
+
 // End checks for errors, and renders to the display
+// If vg_error is set to -1 then the openvg error check won't be made.
 void End() {
-	assert(vgGetError() == VG_NO_ERROR);
+        vg_error = vgGetError();
+        if ((VGErrorCode)vg_error != VG_NO_ERROR) {
+                char errstr[256];
+                snprintf(errstr, 255, "OpenVG error detected (VG_%s_ERROR)", vg_error_msg[vg_error-VG_BAD_HANDLE_ERROR]);
+                error(errstr);
+        }
+                
 	eglSwapBuffers(state->display, state->surface);
 	assert(eglGetError() == EGL_SUCCESS);
 }

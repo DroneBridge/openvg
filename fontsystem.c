@@ -6,6 +6,7 @@
 #include "ft2build.h"
 #include FT_FREETYPE_H
 #include FT_OUTLINE_H
+#include FT_FONT_FORMATS_H
 #include "fontconfig/fontconfig.h"
 
 #include "VG/openvg.h"
@@ -185,6 +186,28 @@ Fontinfo LoadTTFFile(const char *filename)
                 FT_Done_Face(face);
                 return NULL;
         }
+
+                // Check to see if we're a PS font, if so try to load
+                // a metric file (for kerning data).
+        const char *format = FT_Get_Font_Format(face);
+        if (!strcmp(format, "Type 1")) {
+                char fname[strlen(filename)+5];
+                strcpy(fname, filename);
+                char *suffix = (char*)strrchr(fname, '.' );
+                int   has_extension = suffix &&
+                        (strcasecmp( suffix, ".pfa" ) == 0 ||
+                         strcasecmp( suffix, ".pfb" ) == 0 );
+
+                if (!has_extension)
+                        suffix = (char*)fname + strlen(fname);
+
+                memcpy(suffix, ".afm", 5);
+                if (FT_Attach_File(face, fname)) {
+                        memcpy(suffix, ".pfm", 5);
+                        FT_Attach_File(face, fname);
+                }
+        }
+        
         FT_Set_Char_Size(
               face,   // handle to face object
               64*64,  // char_width in 1/64th of points
@@ -203,22 +226,23 @@ Fontinfo LoadTTFFile(const char *filename)
         font->DescenderHeight = (VGfloat)face->size->metrics.descender /4096.0f;
         font->AscenderHeight = (VGfloat)face->size->metrics.ascender / 4096.f;
         font->Height = (VGfloat)face->size->metrics.height / 4096.f;
-        font->AutoHint = VG_FALSE;
         font->Kerning = FT_HAS_KERNING(face);
         
         paths_T paths;
         if (!alloc_paths(&paths)) {
                 FT_Done_Face(face);
+                free(font);
                 return NULL;
         }
 
         FT_Long numGlyphs = face->num_glyphs;
         font->Count = numGlyphs;
         font->CharacterMap = NULL;  // Indicate that we use FT's charmap
-        font->vgfont = vgCreateFont(0);
+        font->vgfont = vgCreateFont(numGlyphs);
         if (font->vgfont == VG_INVALID_HANDLE) {
                 free_paths(&paths);
                 FT_Done_Face(face);
+                free(font);
                 return NULL;
         }
 
@@ -234,18 +258,23 @@ Fontinfo LoadTTFFile(const char *filename)
                                 error = 1;
                                 break;
                         }
+                        VGPath path;
                         if (paths.spos) {
-                                VGPath path = vgCreatePath(VG_PATH_FORMAT_STANDARD,
-                                                           VG_PATH_DATATYPE_S_16,
-                                                           1.0f/4096.0f, 0.0f, 0, 0,
-                                                           VG_PATH_CAPABILITY_APPEND_TO);
+                                path = vgCreatePath(VG_PATH_FORMAT_STANDARD,
+                                                    VG_PATH_DATATYPE_S_16,
+                                                    1.0f/4096.0f, 0.0f, paths.spos, paths.cpos,
+                                                    VG_PATH_CAPABILITY_APPEND_TO);
+                                if (path == VG_INVALID_HANDLE) {
+                                        error = 1;
+                                        break;
+                                }
                                 vgAppendPathData(path, paths.spos, paths.segments, paths.coords);
-                                vgSetGlyphToPath(font->vgfont, cc, path, VG_FALSE, origin, escapement);
+                        }
+                        else
+                                path = VG_INVALID_HANDLE;
+                        vgSetGlyphToPath(font->vgfont, cc, path, VG_FALSE, origin, escapement);
+                        if (path != VG_INVALID_HANDLE)
                                 vgDestroyPath(path);
-                        }
-                        else {  // No glyph image, set to blank
-                                vgSetGlyphToPath(font->vgfont, cc, VG_INVALID_HANDLE, VG_FALSE, origin, escapement);
-                        }
                 }
         }
         free_paths(&paths);
@@ -273,28 +302,29 @@ void UnloadTTF(Fontinfo f)
 //   name is e.g. "DejaVu:monospace"
 Fontinfo LoadTTF(const char *name)
 {
-        char *fontFile = "/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans.ttf";
+        Fontinfo font = NULL;
 
         FcConfig *fc_config = FcInitLoadConfigAndFonts();
         if (fc_config) {
                 FcPattern *pattern = FcNameParse((FcChar8*)name);
-                FcConfigSubstitute(fc_config, pattern, FcMatchPattern);
-                FcDefaultSubstitute(pattern);
-                
-                FcResult result;
-                FcPattern *font = FcFontMatch(fc_config, pattern, &result);
-                if (font) {
-                        FcChar8 *file = NULL;
-                        if (FcPatternGetString(font, FC_FILE, 0, &file) == FcResultMatch) {
-                                fontFile = (char*)file;
+                if (pattern) {
+                        FcConfigSubstitute(fc_config, pattern, FcMatchPattern);
+                        FcDefaultSubstitute(pattern);
+                        
+                        FcResult result;
+                        FcPattern *match = FcFontMatch(fc_config, pattern, &result);
+                        if (match) {
+                                FcChar8 *file = NULL;
+                                if (FcPatternGetString(match, FC_FILE, 0, &file) == FcResultMatch) {
+                                        font = LoadTTFFile((const char*)file);
+                                }
+                                FcPatternDestroy(match);
                         }
-                        FcPatternDestroy(font);
+                        FcPatternDestroy(pattern);
                 }
-                
-                FcPatternDestroy(pattern);
+                FcConfigDestroy(fc_config);
         }
-        FcConfigDestroy(fc_config);
-        return LoadTTFFile(fontFile);
+        return font;
 }
 
 // closeFontSystem() - Close and free data used by freetype2
@@ -346,11 +376,4 @@ void FontKerning(Fontinfo f, int value)
                 else
                         f->Kerning = 0;
         }
-}
-                
-// FontAutoHint sets whether the glyph drawing auto-hints fonts.
-// NB: Not sure if the RPi takes any notice of this.
-void FontAutoHint(Fontinfo f, int autohint)
-{
-        f->AutoHint = (autohint == 0 ? VG_FALSE : VG_TRUE);
 }

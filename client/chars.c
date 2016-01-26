@@ -20,7 +20,7 @@ int main(int argc, char *argv[]) {
                 // Text prints (that's char values < 128). If you
                 // attempt to use a string that isn't valid then the
                 // Text functions will silently do nothing!
-        setlocale(LC_CTYPE, "UTF-8");
+        setlocale(LC_CTYPE, "");    // Set locale to system default
         init(&width, &height);				   // Graphics initialization
 
 	Start(width, height);				   // Start the picture
@@ -32,8 +32,14 @@ int main(int argc, char *argv[]) {
                 // 1st argument on cmd-line is name of font to use, if
                 // none is given then DejaVuSerif will be used.
         myserif = LoadTTF(argc > 1 ? argv[1] : "DejaVuSerif");
+        if (!myserif) {
+                fputs("Failed to load font.", stderr);
+                finish();
+                exit(1);
+        }
+        
                 // Print name, style, and number of glyphs in the font.
-        snprintf(buf, 64, "Hello, font %s, style %s, with %d glyphs", myserif->name, myserif->style, myserif->Count);
+        snprintf(buf, 64, "Hello, font %s, style %s, with %d glyphs", myserif->Name, myserif->Style, myserif->Count);
         Text(10, 50, buf, myserif, 26);
         End();
 	fgets(s, 2, stdin);
@@ -51,7 +57,7 @@ int main(int argc, char *argv[]) {
                 for (j=0; j<40; j++) {
                         pos=0;
                         for ( k=0; k < 64; k++ ) {
-                                i = (j * 64) + k + (l*64*40);
+                                i = (j * 64) + k + (l*64*40)+1;
                                 if ((i >= 0xd800) && (i <= 0xdfff))
                                         i = 0; // Invalid UTF-8 codes
                                 if (i < 0x80) {

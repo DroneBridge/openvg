@@ -3,6 +3,7 @@ ifdef RPISDK
 endif
 
 CC = $(CROSS_COMPILE)gcc
+#CCOPTS = -O0 -g -Wall
 CCOPTS = -O2 -Wall
 
 INCLUDEFLAGS=-I$(RPISDK)/opt/vc/include -I$(RPISDK)/opt/vc/include/interface/vmcs_host/linux -I$(RPISDK)/opt/vc/include/interface/vcos/pthreads -I..
