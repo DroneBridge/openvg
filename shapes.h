@@ -71,7 +71,17 @@ extern "C" {
 	extern void EllipseOutline(VGfloat, VGfloat, VGfloat, VGfloat);
 	extern void CircleOutline(VGfloat, VGfloat, VGfloat);
 	extern void ArcOutline(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat);
+        extern VGPath EllipsePath(VGfloat x, VGfloat y, VGfloat w, VGfloat h);
+        extern VGPath CirclePath(VGfloat x, VGfloat y, VGfloat r);
+        extern void DrawPath(VGPath path);
+        extern void DrawPathOitloine(VGPath path);
+        extern void DeletePath(VGPath path);
 
+        extern VGPaint Paint(int r, int g, int b, float a);
+        extern void DeletePaint(VGPaint paint);
+        extern void FillPaint(VGPaint paint);
+        extern void DtrokePaint(VGPaint paint);
+        
                 // Shapes error values
         typedef enum shapesErrorCode {
                 SHAPES_QUIET = -1,

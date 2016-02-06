@@ -85,11 +85,10 @@ Fontinfo loadfont(const int *Points,
 		  const int *InstructionIndices, const int *InstructionCounts,
                   const int *adv, const short *cmap, int ng,
                   int descender, int ascender) {
-
-        Fontinfo f = calloc(1, sizeof *f);
+        Fontinfo f = malloc(sizeof *f);
         if (!f)
                 return NULL;
-
+        f->face = NULL;
         VGFont font = f->vgfont = vgCreateFont(ng);
         if (font == VG_INVALID_HANDLE) {
                 free(f);
@@ -128,7 +127,7 @@ Fontinfo loadfont(const int *Points,
 	f->Count = ng;
 	f->DescenderHeight = (VGfloat)descender / 65536.0f;
 	f->AscenderHeight = (VGfloat)ascender / 65536.0f;
-        f->Height = ascender - descender + 1; // Guesstimate
+        f->Height = f->AscenderHeight - f->DescenderHeight; // Guesstimate
         f->Name = "unknown";
         f->Style = "unknown";
         f->Kerning = 0;
@@ -139,7 +138,7 @@ Fontinfo loadfont(const int *Points,
 void unloadfont(Fontinfo f) {
         if (f) {
                 if (f->face) // fontsystem font, call it's unload
-                        UnloadTTF(f);
+                        return UnloadTTF(f);
                 else {
                         vgDestroyFont(f->vgfont);
                         free(f);
@@ -309,7 +308,8 @@ void init(int *w, int *h) {
                 vg_error = SHAPES_NO_FONT_ERROR;
                 error("init() failed to create SansTypeface");
         }
-                
+        SerifTypeface = NULL;
+//                
 	SerifTypeface = loadfont(DejaVuSerif_glyphPoints,
 				 DejaVuSerif_glyphPointIndices,
 				 DejaVuSerif_glyphInstructions,
@@ -320,6 +320,7 @@ void init(int *w, int *h) {
                                  DejaVuSerif_glyphCount,
                                  DejaVuSerif_descender_height,
                                  DejaVuSerif_ascender_height);
+//
         if (SerifTypeface) {
                 SerifTypeface->Name = "DejaVu Serif";
                 SerifTypeface->Style = "Book";
@@ -328,7 +329,8 @@ void init(int *w, int *h) {
                 vg_error = SHAPES_NO_FONT_ERROR;
                 error("init() failed to create SerifTypeface");
         }
-        
+        MonoTypeface = NULL;
+//
 	MonoTypeface = loadfont(DejaVuSansMono_glyphPoints,
 				DejaVuSansMono_glyphPointIndices,
 				DejaVuSansMono_glyphInstructions,
@@ -339,6 +341,7 @@ void init(int *w, int *h) {
                                 DejaVuSansMono_glyphCount,
                                 DejaVuSansMono_descender_height,
                                 DejaVuSansMono_ascender_height);
+//
         if (MonoTypeface) {
                 MonoTypeface->Name = "DejaVu Sans Mono";
                 MonoTypeface->Style = "Book";
@@ -908,3 +911,64 @@ void ArcOutline(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat sa, VGfloat 
 	vgDrawPath(path, VG_STROKE_PATH);
 	vgDestroyPath(path);
 }
+
+// Path returning functions - these don't destroy the path, rather
+// they return it so you can draw it many times
+
+// EllipsePath makes an ellipse at the specified location and dimensions
+VGPath EllipsePath(VGfloat x, VGfloat y, VGfloat w, VGfloat h) {
+        VGPath path = newpath();
+	vguEllipse(path, x, y, w, h);
+        return path;
+}
+
+// CirclePath makes a circle at the specified location and dimensions
+VGPath CirclePath(VGfloat x, VGfloat y, VGfloat r) {
+	return EllipsePath(x, y, r, r);
+}
+
+// DrawPath draws the path with both fill and stroke
+void DrawPath(VGPath path)
+{
+        vgDrawPath(path, VG_FILL_PATH | VG_STROKE_PATH);
+}
+
+// DrawPathOutline draws the path with stroke only
+void DrawPathOutline(VGPath path)
+{
+        vgDrawPath(path, VG_STROKE_PATH);
+}
+
+// DeletePath frees the given path
+void DeletePath(VGPath path)
+{
+        vgDestroyPath(path);
+}
+
+// Paint returns a paint of the specified colour
+VGPaint Paint(int r, int g, int b, float a)
+{
+        VGPaint paint = vgCreatePaint();
+        vgSetColor(paint, ((r&255)<<24) + ((g&255)<<16) + ((b&255)<<8) + (((int)(a * 255.0f))&255));
+        return paint;
+}
+
+// Deletes a paint
+void DeletePaint(VGPaint paint)
+{
+        vgDestroyPaint(paint);
+}
+
+
+// Sets the fill to be paint
+void FillPaint(VGPaint paint)
+{
+        vgSetPaint(paint, VG_FILL_PATH);
+}
+
+// Sets the stroke to be paint
+void StrokePaint(VGPaint paint)
+{
+        vgSetPaint(paint, VG_STROKE_PATH);
+}
+

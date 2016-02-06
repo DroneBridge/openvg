@@ -3,8 +3,8 @@ ifdef RPISDK
 endif
 
 CC = $(CROSS_COMPILE)gcc
-#CCOPTS = -O0 -g -Wall
-CCOPTS = -O2 -Wall
+CCOPTS = -O0 -g -Wall
+#CCOPTS = -O2 -Wall
 
 INCLUDEFLAGS=-I$(RPISDK)/opt/vc/include -I$(RPISDK)/opt/vc/include/interface/vmcs_host/linux -I$(RPISDK)/opt/vc/include/interface/vcos/pthreads -I..
 LIBFLAGS= -Wl,-rpath=$(RPISDK)/opt/vc/lib -L$(RPISDK)/opt/vc/lib -lEGL -lGLESv2 -lbcm_host -pthread -ljpeg -lfreetype -lfontconfig
@@ -39,3 +39,6 @@ screensize:	screensize.c ../libshapes.o ../oglinit.o ../fontsystem.o
 
 indent:
 	indent -linux -c 60 -brf -l 132 shapedemo.c hellovg.c mouse-hellovg.c particles.c screensize.c
+
+ptest:	ptest.c ../libshapes.o ../oglinit.o ../fontsystem.o
+	$(CC) $(CCOPTS) $(INCLUDEFLAGS) -o  ptest ptest.c ../libshapes.o ../oglinit.o ../fontsystem.o $(LIBFLAGS)

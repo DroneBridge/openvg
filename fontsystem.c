@@ -188,7 +188,7 @@ Fontinfo LoadTTFFile(const char *filename)
         }
 
                 // Check to see if we're a PS font, if so try to load
-                // a metric file (for kerning data).
+                // a metric file for kerning data.
         const char *format = FT_Get_Font_Format(face);
         if (!strcmp(format, "Type 1")) {
                 char fname[strlen(filename)+5];
@@ -258,7 +258,7 @@ Fontinfo LoadTTFFile(const char *filename)
                                 error = 1;
                                 break;
                         }
-                        VGPath path;
+                        VGPath path = VG_INVALID_HANDLE;
                         if (paths.spos) {
                                 path = vgCreatePath(VG_PATH_FORMAT_STANDARD,
                                                     VG_PATH_DATATYPE_S_16,
@@ -270,8 +270,6 @@ Fontinfo LoadTTFFile(const char *filename)
                                 }
                                 vgAppendPathData(path, paths.spos, paths.segments, paths.coords);
                         }
-                        else
-                                path = VG_INVALID_HANDLE;
                         vgSetGlyphToPath(font->vgfont, cc, path, VG_FALSE, origin, escapement);
                         if (path != VG_INVALID_HANDLE)
                                 vgDestroyPath(path);
