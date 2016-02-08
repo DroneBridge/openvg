@@ -20,16 +20,13 @@
 #include "DejaVuSansMono.inc"
 #include "eglstate.h"					   // data structures for graphics state
 #include "fontinfo.h"					   // font data structure
-#include "shapes.h"	   // Needed to check prototypes
-
-#define error(string) fprintf(stderr, "Error in %s @ %d: %s\n", __FILE__, __LINE__, string);
+#include "shapes.h"					   // Needed to check prototypes
 
 // Bring these functions in from fontsystem.c
 // Don't want to expose the functions to external programs.
 extern void font_CloseFontSystem();
 extern unsigned int font_CharToGlyph(void *face, unsigned long code);
-extern void font_KernData(void *face, unsigned long curr, unsigned long prev,
-                          VGfloat *kernX, VGfloat *kernY);
+extern void font_KernData(void *face, unsigned long curr, unsigned long prev, VGfloat * kernX, VGfloat * kernY);
 
 static STATE_T _state, *state = &_state;	// global graphics state
 static int init_x = 0;		// Initial window position and size
@@ -44,7 +41,10 @@ static unsigned int init_h = 0;
 static VGuint *glyph_string = NULL;
 static VGfloat *glyph_kern = NULL;
 
-shapesErrorCode vg_error = SHAPES_NO_ERROR;
+// hold the paths for unit size basic shapes
+static VGPath common_path = VG_INVALID_HANDLE;
+static VGPaint fill_paint = VG_INVALID_HANDLE;
+static VGPaint stroke_paint = VG_INVALID_HANDLE;
 
 //
 // Terminal settings
@@ -83,68 +83,66 @@ Fontinfo loadfont(const int *Points,
 		  const int *PointIndices,
 		  const unsigned char *Instructions,
 		  const int *InstructionIndices, const int *InstructionCounts,
-                  const int *adv, const short *cmap, int ng,
-                  int descender, int ascender) {
-        Fontinfo f = malloc(sizeof *f);
-        if (!f)
-                return NULL;
-        f->face = NULL;
-        VGFont font = f->vgfont = vgCreateFont(ng);
-        if (font == VG_INVALID_HANDLE) {
-                free(f);
-                return NULL;
-        }
-        
+		  const int *adv, const short *cmap, int ng, int descender, int ascender) {
+	Fontinfo f = malloc(sizeof *f);
+	if (!f)
+		return NULL;
+	f->face = NULL;
+	VGFont font = f->vgfont = vgCreateFont(ng);
+	if (font == VG_INVALID_HANDLE) {
+		free(f);
+		return NULL;
+	}
+
 	int i;
 	for (i = 0; i < ng; i++) {
 		const int *p = &Points[PointIndices[i] * 2];
 		const unsigned char *instructions = &Instructions[InstructionIndices[i]];
-                VGfloat origin[2] = { 0.0f, 0.0f };
-                VGfloat escapement[2] = { (VGfloat)(adv[i]) / 65536.0f, 0.0f };
-                VGPath path = VG_INVALID_HANDLE;
+		VGfloat origin[2] = { 0.0f, 0.0f };
+		VGfloat escapement[2] = { (VGfloat) (adv[i]) / 65536.0f, 0.0f };
+		VGPath path = VG_INVALID_HANDLE;
 		int ic = InstructionCounts[i];
-                if (ic) {
-                        int p_count;
-                        if (i < ng-1)
-                                p_count = PointIndices[i+1];
-                        else
-                                p_count = sizeof Points / sizeof *Points;
-                        p_count -= PointIndices[i];
-                        
-                        path = vgCreatePath(VG_PATH_FORMAT_STANDARD,
-                                            VG_PATH_DATATYPE_S_32,
-                                            1.0f / 65536.0f, 0.0f, ic, p_count,
-                                            VG_PATH_CAPABILITY_APPEND_TO);
-                        vgAppendPathData(path, ic, instructions, p);
-                }
-                vgSetGlyphToPath(font, i, path, VG_FALSE, origin, escapement);
-                if (path != VG_INVALID_HANDLE)
-                        vgDestroyPath(path);
-        }
-        
+		if (ic) {
+			int p_count;
+			if (i < ng - 1)
+				p_count = PointIndices[i + 1];
+			else
+				p_count = sizeof Points / sizeof *Points;
+			p_count -= PointIndices[i];
+
+			path = vgCreatePath(VG_PATH_FORMAT_STANDARD,
+					    VG_PATH_DATATYPE_S_32,
+					    1.0f / 65536.0f, 0.0f, ic, p_count, VG_PATH_CAPABILITY_APPEND_TO);
+			vgAppendPathData(path, ic, instructions, p);
+		}
+		vgSetGlyphToPath(font, i, path, VG_FALSE, origin, escapement);
+		if (path != VG_INVALID_HANDLE)
+			vgDestroyPath(path);
+	}
+
 	f->CharacterMap = cmap;
 	f->GlyphAdvances = adv;
 	f->Count = ng;
-	f->DescenderHeight = (VGfloat)descender / 65536.0f;
-	f->AscenderHeight = (VGfloat)ascender / 65536.0f;
-        f->Height = f->AscenderHeight - f->DescenderHeight; // Guesstimate
-        f->Name = "unknown";
-        f->Style = "unknown";
-        f->Kerning = 0;
-        return f;
+	f->DescenderHeight = (VGfloat) descender / 65536.0f;
+	f->AscenderHeight = (VGfloat) ascender / 65536.0f;
+	f->Height = f->AscenderHeight - f->DescenderHeight;	// Guesstimate
+	f->Name = "unknown";
+	f->Style = "unknown";
+	f->Kerning = 0;
+	return f;
 }
 
 // unloadfont frees font path data
 void unloadfont(Fontinfo f) {
-        if (f) {
-                if (f->face) // fontsystem font, call it's unload
-                        return UnloadTTF(f);
-                else {
-                        vgDestroyFont(f->vgfont);
-                        free(f);
-                }
-                
-        }
+	if (f) {
+		if (f->face)
+			return UnloadTTF(f);
+		else {
+			vgDestroyFont(f->vgfont);
+			free(f);
+		}
+
+	}
 }
 
 // createImageFromJpeg decompresses a JPEG image to the standard image format
@@ -296,75 +294,63 @@ void init(int *w, int *h) {
 				DejaVuSans_glyphInstructionIndices,
 				DejaVuSans_glyphInstructionCounts,
 				DejaVuSans_glyphAdvances,
-                                DejaVuSans_characterMap,
-                                DejaVuSans_glyphCount,
-                                DejaVuSans_descender_height,
-                                DejaVuSans_ascender_height);
-        if (SansTypeface) {
-                SansTypeface->Name = "DejaVu Sans";
-                SansTypeface->Style = "Book";
-        }
-        else {
-                vg_error = SHAPES_NO_FONT_ERROR;
-                error("init() failed to create SansTypeface");
-        }
-        SerifTypeface = NULL;
-//                
+				DejaVuSans_characterMap,
+				DejaVuSans_glyphCount, DejaVuSans_descender_height, DejaVuSans_ascender_height);
+	if (SansTypeface) {
+		SansTypeface->Name = "DejaVu Sans";
+		SansTypeface->Style = "Book";
+	}
 	SerifTypeface = loadfont(DejaVuSerif_glyphPoints,
 				 DejaVuSerif_glyphPointIndices,
 				 DejaVuSerif_glyphInstructions,
 				 DejaVuSerif_glyphInstructionIndices,
 				 DejaVuSerif_glyphInstructionCounts,
 				 DejaVuSerif_glyphAdvances,
-                                 DejaVuSerif_characterMap,
-                                 DejaVuSerif_glyphCount,
-                                 DejaVuSerif_descender_height,
-                                 DejaVuSerif_ascender_height);
-//
-        if (SerifTypeface) {
-                SerifTypeface->Name = "DejaVu Serif";
-                SerifTypeface->Style = "Book";
-        }
-        else {
-                vg_error = SHAPES_NO_FONT_ERROR;
-                error("init() failed to create SerifTypeface");
-        }
-        MonoTypeface = NULL;
-//
+				 DejaVuSerif_characterMap,
+				 DejaVuSerif_glyphCount, DejaVuSerif_descender_height, DejaVuSerif_ascender_height);
+	if (SerifTypeface) {
+		SerifTypeface->Name = "DejaVu Serif";
+		SerifTypeface->Style = "Book";
+	}
 	MonoTypeface = loadfont(DejaVuSansMono_glyphPoints,
 				DejaVuSansMono_glyphPointIndices,
 				DejaVuSansMono_glyphInstructions,
 				DejaVuSansMono_glyphInstructionIndices,
 				DejaVuSansMono_glyphInstructionCounts,
 				DejaVuSansMono_glyphAdvances,
-                                DejaVuSansMono_characterMap,
-                                DejaVuSansMono_glyphCount,
-                                DejaVuSansMono_descender_height,
-                                DejaVuSansMono_ascender_height);
-//
-        if (MonoTypeface) {
-                MonoTypeface->Name = "DejaVu Sans Mono";
-                MonoTypeface->Style = "Book";
-        }
-        else {
-                vg_error = SHAPES_NO_FONT_ERROR;
-                error("init() failed to create MonoTypeface");
-        }
-        
+				DejaVuSansMono_characterMap,
+				DejaVuSansMono_glyphCount, DejaVuSansMono_descender_height, DejaVuSansMono_ascender_height);
+	if (MonoTypeface) {
+		MonoTypeface->Name = "DejaVu Sans Mono";
+		MonoTypeface->Style = "Book";
+	}
 	*w = state->window_width;
 	*h = state->window_height;
+
+	if (!SansTypeface || !SerifTypeface || !MonoTypeface) {
+		puts("libshapes failed to initialise.");
+		finish();
+		exit(1);
+	}
+
+	fill_paint = vgCreatePaint();
+	stroke_paint = vgCreatePaint();
+	common_path = vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 0, 0, VG_PATH_CAPABILITY_APPEND_TO);
 }
 
 // finish cleans up
 void finish() {
-        unloadfont(SansTypeface);
-        SansTypeface = NULL;
+	vgDestroyPaint(stroke_paint);
+	vgDestroyPaint(fill_paint);
+	vgDestroyPath(common_path);
+	unloadfont(SansTypeface);
+	SansTypeface = NULL;
 	unloadfont(SerifTypeface);
-        SerifTypeface = NULL;
+	SerifTypeface = NULL;
 	unloadfont(MonoTypeface);
-        MonoTypeface = NULL;
-        font_CloseFontSystem();
-        eglSwapBuffers(state->display, state->surface);
+	MonoTypeface = NULL;
+	font_CloseFontSystem();
+	eglSwapBuffers(state->display, state->surface);
 	eglMakeCurrent(state->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 	eglDestroySurface(state->display, state->surface);
 	eglDestroyContext(state->display, state->context);
@@ -401,20 +387,16 @@ void Scale(VGfloat x, VGfloat y) {
 
 // setfill sets the fill color
 void setfill(VGfloat color[4]) {
-	VGPaint fillPaint = vgCreatePaint();
-	vgSetParameteri(fillPaint, VG_PAINT_TYPE, VG_PAINT_TYPE_COLOR);
-	vgSetParameterfv(fillPaint, VG_PAINT_COLOR, 4, color);
-	vgSetPaint(fillPaint, VG_FILL_PATH);
-	vgDestroyPaint(fillPaint);
+	vgSetParameteri(fill_paint, VG_PAINT_TYPE, VG_PAINT_TYPE_COLOR);
+	vgSetParameterfv(fill_paint, VG_PAINT_COLOR, 4, color);
+	vgSetPaint(fill_paint, VG_FILL_PATH);
 }
 
 // setstroke sets the stroke color
 void setstroke(VGfloat color[4]) {
-	VGPaint strokePaint = vgCreatePaint();
-	vgSetParameteri(strokePaint, VG_PAINT_TYPE, VG_PAINT_TYPE_COLOR);
-	vgSetParameterfv(strokePaint, VG_PAINT_COLOR, 4, color);
-	vgSetPaint(strokePaint, VG_STROKE_PATH);
-	vgDestroyPaint(strokePaint);
+	vgSetParameteri(stroke_paint, VG_PAINT_TYPE, VG_PAINT_TYPE_COLOR);
+	vgSetParameterfv(stroke_paint, VG_PAINT_COLOR, 4, color);
+	vgSetPaint(stroke_paint, VG_STROKE_PATH);
 }
 
 // StrokeWidth sets the stroke width
@@ -481,21 +463,17 @@ void setstop(VGPaint paint, VGfloat * stops, int n) {
 // LinearGradient fills with a linear gradient
 void FillLinearGradient(VGfloat x1, VGfloat y1, VGfloat x2, VGfloat y2, VGfloat * stops, int ns) {
 	VGfloat lgcoord[4] = { x1, y1, x2, y2 };
-	VGPaint paint = vgCreatePaint();
-	vgSetParameteri(paint, VG_PAINT_TYPE, VG_PAINT_TYPE_LINEAR_GRADIENT);
-	vgSetParameterfv(paint, VG_PAINT_LINEAR_GRADIENT, 4, lgcoord);
-	setstop(paint, stops, ns);
-	vgDestroyPaint(paint);
+	vgSetParameteri(fill_paint, VG_PAINT_TYPE, VG_PAINT_TYPE_LINEAR_GRADIENT);
+	vgSetParameterfv(fill_paint, VG_PAINT_LINEAR_GRADIENT, 4, lgcoord);
+	setstop(fill_paint, stops, ns);
 }
 
 // RadialGradient fills with a linear gradient
 void FillRadialGradient(VGfloat cx, VGfloat cy, VGfloat fx, VGfloat fy, VGfloat radius, VGfloat * stops, int ns) {
 	VGfloat radialcoord[5] = { cx, cy, fx, fy, radius };
-	VGPaint paint = vgCreatePaint();
-	vgSetParameteri(paint, VG_PAINT_TYPE, VG_PAINT_TYPE_RADIAL_GRADIENT);
-	vgSetParameterfv(paint, VG_PAINT_RADIAL_GRADIENT, 5, radialcoord);
-	setstop(paint, stops, ns);
-	vgDestroyPaint(paint);
+	vgSetParameteri(fill_paint, VG_PAINT_TYPE, VG_PAINT_TYPE_RADIAL_GRADIENT);
+	vgSetParameterfv(fill_paint, VG_PAINT_RADIAL_GRADIENT, 5, radialcoord);
+	setstop(fill_paint, stops, ns);
 }
 
 // ClipRect limits the drawing area to specified rectangle
@@ -518,113 +496,109 @@ void ClipEnd() {
 //   Cache: If we are passed glyph_string as the string then it's
 //   because TextMid & TextEnd have already called here when
 //   calculating the width and we don't want to parse it again.
-int stringToGlyphs(const char *s, Fontinfo f)
-{
-        static int glyph_length = 0;     // number of valid glyphs in string
-        static int glyph_string_len = 0; // size of allocated buffer
-        if (s == (char *)glyph_string) {
-                return glyph_length;
-        }
-        
-        mbstate_t state;
-        memset(&state, 0, sizeof state);
-        int str_length = mbsrtowcs(NULL, &s, 0, &state);
-        if (str_length <= 0)
-                return 0;
+int stringToGlyphs(const char *s, Fontinfo f) {
+	static int glyph_length = 0;	// number of valid glyphs in string
+	static int glyph_string_len = 0;	// size of allocated buffer
+	if (s == (char *)glyph_string) {
+		return glyph_length;
+	}
 
-        if (str_length > glyph_string_len) {
-                if (glyph_string)
-                        free(glyph_string);
-                if (glyph_kern)
-                        free(glyph_kern);
+	mbstate_t state;
+	memset(&state, 0, sizeof state);
+	int str_length = mbsrtowcs(NULL, &s, 0, &state);
+	if (str_length <= 0)
+		return 0;
 
-                glyph_string_len = str_length;
-                glyph_string = malloc(glyph_string_len * sizeof *glyph_string);
-                if (f->Kerning)
-                        glyph_kern = malloc(glyph_string_len * 2 * sizeof *glyph_kern);
-        }
-        wchar_t wstr[str_length+1];
-        mbsrtowcs(wstr, &s, str_length+1, &state);
-        glyph_length = 0;
-        int i;
-        if (f->CharacterMap) { // libshapes classic fonts
-                for (i = 0; i < str_length; i++) {
-                        if (wstr[i] < f->Count) {
-                                VGuint glyph = f->CharacterMap[wstr[i]];
-                                if (glyph != -1)
-                                        glyph_string[glyph_length++] = glyph;
-                                }
-                }
-        }
-        else { // fontsystem fonts
-                VGuint prev = 0xffffffff;
-                VGfloat *kernX = &glyph_kern[0];
-                VGfloat *kernY = &glyph_kern[str_length];
-                for (i = 0; i < str_length; i++) {
-                        VGuint glyph = font_CharToGlyph(f->face, wstr[i]);
-                        glyph_string[i] = glyph;
-                        if (f->Kerning) {
-                                font_KernData(f->face, glyph, prev, kernX++, kernY++);
-                                prev = glyph;
-                        }
-                }
-                glyph_length = str_length;
-        }
-        return glyph_length;
+	if (str_length > glyph_string_len) {
+		if (glyph_string)
+			free(glyph_string);
+		if (glyph_kern)
+			free(glyph_kern);
+
+		glyph_string_len = str_length;
+		glyph_string = malloc(glyph_string_len * sizeof *glyph_string);
+		if (f->Kerning)
+			glyph_kern = malloc(glyph_string_len * 2 * sizeof *glyph_kern);
+	}
+	wchar_t wstr[str_length + 1];
+	mbsrtowcs(wstr, &s, str_length + 1, &state);
+	glyph_length = 0;
+	int i;
+	if (f->CharacterMap) {				   // libshapes classic fonts
+		for (i = 0; i < str_length; i++) {
+			if (wstr[i] < f->Count) {
+				VGuint glyph = f->CharacterMap[wstr[i]];
+				if (glyph != -1)
+					glyph_string[glyph_length++] = glyph;
+			}
+		}
+	} else {					   // fontsystem fonts
+		VGuint prev = 0xffffffff;
+		VGfloat *kernX = &glyph_kern[0];
+		VGfloat *kernY = &glyph_kern[str_length];
+		for (i = 0; i < str_length; i++) {
+			VGuint glyph = font_CharToGlyph(f->face, wstr[i]);
+			glyph_string[i] = glyph;
+			if (f->Kerning) {
+				font_KernData(f->face, glyph, prev, kernX++, kernY++);
+				prev = glyph;
+			}
+		}
+		glyph_length = str_length;
+	}
+	return glyph_length;
 }
 
 // Text renders a string of text at a specified location, size, using the specified font glyphs
 void Text(VGfloat x, VGfloat y, const char *s, Fontinfo f, int pointsize) {
-        VGfloat size = (VGfloat)pointsize;
-        VGfloat matrix[9];
-        vgGetMatrix(matrix);
-        VGint mm = vgGeti(VG_MATRIX_MODE);
-        vgSeti(VG_MATRIX_MODE, VG_MATRIX_GLYPH_USER_TO_SURFACE);
-        vgLoadMatrix(matrix);
-        vgTranslate(x, y);
-        vgScale(size, size);
-        vgSeti(VG_MATRIX_MODE, mm);
-        VGfloat pos[2] = { 0.0f, 0.0f };
-        vgSetfv(VG_GLYPH_ORIGIN, 2, pos);
-        VGfloat strokew = vgGetf(VG_STROKE_LINE_WIDTH);
-        if (strokew != 0.0f) {
-                vgSetf(VG_STROKE_LINE_WIDTH, strokew/size);
-        }
-        int count = stringToGlyphs(s, f);
-        if (count) {
-                VGfloat *kernX, *kernY;
-                if (f->Kerning) {
-                        kernX = &glyph_kern[0];
-                        kernY = &glyph_kern[count];
-                }
-                else {
-                        kernX = kernY = NULL;
-                }
-                vgDrawGlyphs(f->vgfont, count, glyph_string, kernX, kernY, VG_FILL_PATH | VG_STROKE_PATH, VG_FALSE);
-        }
-        if (strokew != 0.0f) {
-                vgSetf(VG_STROKE_LINE_WIDTH, strokew);
-        }
+	VGfloat size = (VGfloat) pointsize;
+	VGfloat matrix[9];
+	vgGetMatrix(matrix);
+	VGint mm = vgGeti(VG_MATRIX_MODE);
+	vgSeti(VG_MATRIX_MODE, VG_MATRIX_GLYPH_USER_TO_SURFACE);
+	vgLoadMatrix(matrix);
+	vgTranslate(x, y);
+	vgScale(size, size);
+	vgSeti(VG_MATRIX_MODE, mm);
+	VGfloat pos[2] = { 0.0f, 0.0f };
+	vgSetfv(VG_GLYPH_ORIGIN, 2, pos);
+	VGfloat strokew = vgGetf(VG_STROKE_LINE_WIDTH);
+	if (strokew != 0.0f) {
+		vgSetf(VG_STROKE_LINE_WIDTH, strokew / size);
+	}
+	int count = stringToGlyphs(s, f);
+	if (count) {
+		VGfloat *kernX, *kernY;
+		if (f->Kerning) {
+			kernX = &glyph_kern[0];
+			kernY = &glyph_kern[count];
+		} else {
+			kernX = kernY = NULL;
+		}
+		vgDrawGlyphs(f->vgfont, count, glyph_string, kernX, kernY, VG_FILL_PATH | VG_STROKE_PATH, VG_FALSE);
+	}
+	if (strokew != 0.0f) {
+		vgSetf(VG_STROKE_LINE_WIDTH, strokew);
+	}
 }
 
 // TextWidth returns the width of a text string at the specified font and size.
 VGfloat TextWidth(const char *s, Fontinfo f, int pointsize) {
-        VGfloat pos[2] = { 0.0f, 0.0f };
-        int count = stringToGlyphs(s, f);
-        if (count) {
-                vgSetfv(VG_GLYPH_ORIGIN, 2, pos);
-                VGfloat *kernX, *kernY;
-                if (f->Kerning) {
-                        kernX = &glyph_kern[0];
-                        kernY = &glyph_kern[count];
-                }
-                else {
-                        kernX = kernY = NULL;
-                }
-                vgDrawGlyphs(f->vgfont, count, glyph_string, kernX, kernY, 0, VG_FALSE);
-                vgGetfv(VG_GLYPH_ORIGIN, 2, pos);
+	VGfloat pos[2] = { 0.0f, 0.0f };
+	int count = stringToGlyphs(s, f);
+	if (count) {
+		vgSetfv(VG_GLYPH_ORIGIN, 2, pos);
+		VGfloat *kernX, *kernY;
+		if (f->Kerning) {
+			kernX = &glyph_kern[0];
+			kernY = &glyph_kern[count];
+		} else {
+			kernX = kernY = NULL;
+		}
+		vgDrawGlyphs(f->vgfont, count, glyph_string, kernX, kernY, 0, VG_FALSE);
+		vgGetfv(VG_GLYPH_ORIGIN, 2, pos);
 	}
-	return pos[0] * (VGfloat)pointsize;
+	return pos[0] * (VGfloat) pointsize;
 }
 
 // In TextMid and TextEnd we pass glyph_string directly to Text as
@@ -634,30 +608,29 @@ VGfloat TextWidth(const char *s, Fontinfo f, int pointsize) {
 // TextMid draws text, centered on (x,y)
 void TextMid(VGfloat x, VGfloat y, const char *s, Fontinfo f, int pointsize) {
 	VGfloat tw = TextWidth(s, f, pointsize);
-	Text(x - (tw / 2.0f), y, (char*)glyph_string, f, pointsize);
+	Text(x - (tw / 2.0f), y, (char *)glyph_string, f, pointsize);
 }
 
 // TextEnd draws text, with its end aligned to (x,y)
 void TextEnd(VGfloat x, VGfloat y, const char *s, Fontinfo f, int pointsize) {
 	VGfloat tw = TextWidth(s, f, pointsize);
-	Text(x - tw, y, (char*)glyph_string, f, pointsize);
+	Text(x - tw, y, (char *)glyph_string, f, pointsize);
 }
 
 // TextHeight reports a font's height above baseline
 VGfloat TextHeight(Fontinfo f, int pointsize) {
-	return f->AscenderHeight * (VGfloat)pointsize;
+	return f->AscenderHeight * (VGfloat) pointsize;
 }
 
 // TextDepth reports a font's depth (how far under the baseline it goes)
 VGfloat TextDepth(Fontinfo f, int pointsize) {
-	return -f->DescenderHeight * (VGfloat)pointsize;
+	return -f->DescenderHeight * (VGfloat) pointsize;
 }
 
 // TextLineHeight reports how far between baselines is recommended
 VGfloat TextLineHeight(Fontinfo f, int pointsize) {
-        return f->Height * (VGfloat)pointsize;
+	return f->Height * (VGfloat) pointsize;
 }
-
 
 //
 // Shape functions
@@ -666,8 +639,10 @@ VGfloat TextLineHeight(Fontinfo f, int pointsize) {
 // newpath creates path data
 // Changed capabilities as others not needed at the moment - allows possible
 // driver optimisations.
+// Changed to just clear out and re-use a common path.
 VGPath newpath() {
-	return vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 0, 0, VG_PATH_CAPABILITY_APPEND_TO);	// Other capabilities not needed
+	vgClearPath(common_path, VG_PATH_CAPABILITY_APPEND_TO);
+	return common_path;
 }
 
 // makecurve makes path data using specified segments and coordinates
@@ -675,7 +650,6 @@ void makecurve(VGubyte * segments, VGfloat * coords, VGbitfield flags) {
 	VGPath path = newpath();
 	vgAppendPathData(path, 2, segments, coords);
 	vgDrawPath(path, flags);
-	vgDestroyPath(path);
 }
 
 // CBezier makes a quadratic bezier curve
@@ -707,7 +681,6 @@ void poly(VGfloat * x, VGfloat * y, VGint n, VGbitfield flag) {
 	interleave(x, y, n, points);
 	vguPolygon(path, points, n, VG_FALSE);
 	vgDrawPath(path, flag);
-	vgDestroyPath(path);
 }
 
 // Polygon makes a filled polygon with vertices in x, y arrays
@@ -725,15 +698,13 @@ void Rect(VGfloat x, VGfloat y, VGfloat w, VGfloat h) {
 	VGPath path = newpath();
 	vguRect(path, x, y, w, h);
 	vgDrawPath(path, VG_FILL_PATH | VG_STROKE_PATH);
-	vgDestroyPath(path);
 }
 
 // Line makes a line from (x1,y1) to (x2,y2)
 void Line(VGfloat x1, VGfloat y1, VGfloat x2, VGfloat y2) {
 	VGPath path = newpath();
 	vguLine(path, x1, y1, x2, y2);
-	vgDrawPath(path, VG_STROKE_PATH);
-	vgDestroyPath(path);
+	vgDrawPath(path, VG_FILL_PATH | VG_STROKE_PATH);
 }
 
 // Roundrect makes an rounded rectangle at the specified location and dimensions
@@ -741,15 +712,13 @@ void Roundrect(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat rw, VGfloat r
 	VGPath path = newpath();
 	vguRoundRect(path, x, y, w, h, rw, rh);
 	vgDrawPath(path, VG_FILL_PATH | VG_STROKE_PATH);
-	vgDestroyPath(path);
 }
 
 // Ellipse makes an ellipse at the specified location and dimensions
 void Ellipse(VGfloat x, VGfloat y, VGfloat w, VGfloat h) {
-        VGPath path = newpath();
+	VGPath path = newpath();
 	vguEllipse(path, x, y, w, h);
 	vgDrawPath(path, VG_FILL_PATH | VG_STROKE_PATH);
-	vgDestroyPath(path);
 }
 
 // Circle makes a circle at the specified location and dimensions
@@ -762,7 +731,6 @@ void Arc(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat sa, VGfloat aext) {
 	VGPath path = newpath();
 	vguArc(path, x, y, w, h, sa, aext, VGU_ARC_OPEN);
 	vgDrawPath(path, VG_FILL_PATH | VG_STROKE_PATH);
-	vgDestroyPath(path);
 }
 
 // Start begins the picture, clearing a rectangular region with a specified color
@@ -777,27 +745,9 @@ void Start(int width, int height) {
 	vgLoadIdentity();
 }
 
-const char *vg_error_msg[] = {
-        "BAD_HANDLE",
-        "ILLEGAL_ARGUMENT",
-        "OUT_OF_MEMORY",
-        "PATH_CAPABILITY",
-        "UNSUPPORTED_UMAGE_FORMAT",
-        "UNSUPPORTED_PATH_FORMAT",
-        "IMAGE_IN_USE"
-        "NO_CONTEXT"
-};
-
 // End checks for errors, and renders to the display
-// If vg_error is set to -1 then the openvg error check won't be made.
 void End() {
-        vg_error = vgGetError();
-        if ((VGErrorCode)vg_error != VG_NO_ERROR) {
-                char errstr[256];
-                snprintf(errstr, 255, "OpenVG error detected (VG_%s_ERROR)", vg_error_msg[vg_error-VG_BAD_HANDLE_ERROR]);
-                error(errstr);
-        }
-                
+	assert(vgGetError() == VG_NO_ERROR);
 	eglSwapBuffers(state->display, state->surface);
 	assert(eglGetError() == EGL_SUCCESS);
 }
@@ -857,9 +807,8 @@ void WindowPosition(int x, int y) {
 }
 
 // Outlined shapes
-// Hollow shapes -because filling still happens even with a fill of 0,0,0,0
+// Hollow shapes, because filling still happens even with a fill of 0,0,0,0
 // unlike where using a strokewidth of 0 disables the stroke.
-// Either this or change the original functions to require the VG_x_PATH flags
 
 // CBezier makes a quadratic bezier curve, stroked
 void CbezierOutline(VGfloat sx, VGfloat sy, VGfloat cx, VGfloat cy, VGfloat px, VGfloat py, VGfloat ex, VGfloat ey) {
@@ -880,7 +829,6 @@ void RectOutline(VGfloat x, VGfloat y, VGfloat w, VGfloat h) {
 	VGPath path = newpath();
 	vguRect(path, x, y, w, h);
 	vgDrawPath(path, VG_STROKE_PATH);
-	vgDestroyPath(path);
 }
 
 // RoundrectOutline  makes an rounded rectangle at the specified location and dimensions, outlined 
@@ -888,7 +836,6 @@ void RoundrectOutline(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat rw, VG
 	VGPath path = newpath();
 	vguRoundRect(path, x, y, w, h, rw, rh);
 	vgDrawPath(path, VG_STROKE_PATH);
-	vgDestroyPath(path);
 }
 
 // EllipseOutline makes an ellipse at the specified location and dimensions, outlined
@@ -896,7 +843,6 @@ void EllipseOutline(VGfloat x, VGfloat y, VGfloat w, VGfloat h) {
 	VGPath path = newpath();
 	vguEllipse(path, x, y, w, h);
 	vgDrawPath(path, VG_STROKE_PATH);
-	vgDestroyPath(path);
 }
 
 // CircleOutline makes a circle at the specified location and dimensions, outlined
@@ -909,66 +855,159 @@ void ArcOutline(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat sa, VGfloat 
 	VGPath path = newpath();
 	vguArc(path, x, y, w, h, sa, aext, VGU_ARC_OPEN);
 	vgDrawPath(path, VG_STROKE_PATH);
-	vgDestroyPath(path);
 }
 
 // Path returning functions - these don't destroy the path, rather
-// they return it so you can draw it many times
+// they return it so you can draw it many times. Otherwise equivalent
+// to the same shape functions.
 
-// EllipsePath makes an ellipse at the specified location and dimensions
-VGPath EllipsePath(VGfloat x, VGfloat y, VGfloat w, VGfloat h) {
-        VGPath path = newpath();
-	vguEllipse(path, x, y, w, h);
-        return path;
+// newpath_ext creates new a new path, this one has all capabilities
+// as the user may want to join paths together.
+static inline VGPath newpath_ext() {
+	return vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 0, 0, VG_PATH_CAPABILITY_ALL);
 }
 
-// CirclePath makes a circle at the specified location and dimensions
+VGPath CbezierPath(VGfloat sx, VGfloat sy, VGfloat cx, VGfloat cy, VGfloat px, VGfloat py, VGfloat ex, VGfloat ey) {
+	VGubyte segments[] = { VG_MOVE_TO_ABS, VG_CUBIC_TO };
+	VGfloat coords[] = { sx, sy, cx, cy, px, py, ex, ey };
+	VGPath path = newpath_ext();
+	vgAppendPathData(path, 2, segments, coords);
+	return path;
+}
+
+VGPath QbezierPath(VGfloat sx, VGfloat sy, VGfloat cx, VGfloat cy, VGfloat ex, VGfloat ey) {
+	VGubyte segments[] = { VG_MOVE_TO_ABS, VG_QUAD_TO };
+	VGfloat coords[] = { sx, sy, cx, cy, ex, ey };
+	VGPath path = newpath_ext();
+	vgAppendPathData(path, 2, segments, coords);
+	return path;
+}
+
+VGPath PolygonPath(VGfloat * x, VGfloat * y, VGint n) {
+	VGfloat points[n * 2];
+	VGPath path = newpath_ext();
+	interleave(x, y, n, points);
+	vguPolygon(path, points, n, VG_FALSE);
+	return path;
+}
+
+VGPath RectPath(VGfloat x, VGfloat y, VGfloat w, VGfloat h) {
+	VGPath path = newpath_ext();
+	vguRect(path, x, y, w, h);
+	return path;
+}
+
+VGPath LinePath(VGfloat x1, VGfloat y1, VGfloat x2, VGfloat y2) {
+	VGPath path = newpath_ext();
+	vguLine(path, x1, y1, x2, y2);
+	return path;
+}
+
+VGPath RoundrectPath(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat rw, VGfloat rh) {
+	VGPath path = newpath_ext();
+	vguRoundRect(path, x, y, w, h, rw, rh);
+	return path;
+}
+
+VGPath EllipsePath(VGfloat x, VGfloat y, VGfloat w, VGfloat h) {
+	VGPath path = newpath_ext();
+	vguEllipse(path, x, y, w, h);
+	return path;
+}
+
 VGPath CirclePath(VGfloat x, VGfloat y, VGfloat r) {
 	return EllipsePath(x, y, r, r);
 }
 
+VGPath ArcPath(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat sa, VGfloat aext) {
+	VGPath path = newpath_ext();
+	vguArc(path, x, y, w, h, sa, aext, VGU_ARC_OPEN);
+	return path;
+}
+
 // DrawPath draws the path with both fill and stroke
-void DrawPath(VGPath path)
-{
-        vgDrawPath(path, VG_FILL_PATH | VG_STROKE_PATH);
+void DrawPath(VGPath path) {
+	vgDrawPath(path, VG_FILL_PATH | VG_STROKE_PATH);
 }
 
 // DrawPathOutline draws the path with stroke only
-void DrawPathOutline(VGPath path)
-{
-        vgDrawPath(path, VG_STROKE_PATH);
+void DrawPathOutline(VGPath path) {
+	vgDrawPath(path, VG_STROKE_PATH);
+}
+
+// DrawPathAt draws the path after translating the origin to x,y
+void DrawPathAt(VGfloat x, VGfloat y, VGPath path) {
+	VGfloat matrix[9];
+	VGMatrixMode mode = vgGeti(VG_MATRIX_MODE);
+	if (mode != VG_MATRIX_PATH_USER_TO_SURFACE)
+		vgSeti(VG_MATRIX_MODE, VG_MATRIX_PATH_USER_TO_SURFACE);
+	vgGetMatrix(matrix);
+	vgTranslate(x, y);
+	vgDrawPath(path, VG_FILL_PATH | VG_STROKE_PATH);
+	vgLoadMatrix(matrix);
+	if (mode != VG_MATRIX_PATH_USER_TO_SURFACE)
+		vgSeti(VG_MATRIX_MODE, mode);
+}
+
+// DrawPathOutlineAt draws the outline path after translating the origin to x,y
+void DrawPathOutlineAt(VGfloat x, VGfloat y, VGPath path) {
+	VGfloat matrix[9];
+	VGMatrixMode mode = vgGeti(VG_MATRIX_MODE);
+	if (mode != VG_MATRIX_PATH_USER_TO_SURFACE)
+		vgSeti(VG_MATRIX_MODE, VG_MATRIX_PATH_USER_TO_SURFACE);
+	vgGetMatrix(matrix);
+	vgTranslate(x, y);
+	vgDrawPath(path, VG_STROKE_PATH);
+	vgLoadMatrix(matrix);
+	if (mode != VG_MATRIX_PATH_USER_TO_SURFACE)
+		vgSeti(VG_MATRIX_MODE, mode);
 }
 
 // DeletePath frees the given path
-void DeletePath(VGPath path)
-{
-        vgDestroyPath(path);
+void DeletePath(VGPath path) {
+	vgDestroyPath(path);
 }
 
 // Paint returns a paint of the specified colour
-VGPaint Paint(int r, int g, int b, float a)
-{
-        VGPaint paint = vgCreatePaint();
-        vgSetColor(paint, ((r&255)<<24) + ((g&255)<<16) + ((b&255)<<8) + (((int)(a * 255.0f))&255));
-        return paint;
+VGPaint Paint(unsigned int r, unsigned int g, unsigned int b, float a) {
+	VGfloat colour[4];
+	RGBA(r, g, b, a, colour);
+	VGPaint paint = vgCreatePaint();
+	vgSetParameteri(paint, VG_PAINT_TYPE, VG_PAINT_TYPE_COLOR);
+	vgSetParameterfv(paint, VG_PAINT_COLOR, 4, colour);
+	return paint;
+}
+
+VGPaint LinearGradientPaint(VGfloat x1, VGfloat y1, VGfloat x2, VGfloat y2, VGfloat * stops, int ns) {
+	VGfloat lgcoord[4] = { x1, y1, x2, y2 };
+	VGPaint paint = vgCreatePaint();
+	vgSetParameteri(paint, VG_PAINT_TYPE, VG_PAINT_TYPE_LINEAR_GRADIENT);
+	vgSetParameterfv(paint, VG_PAINT_LINEAR_GRADIENT, 4, lgcoord);
+	setstop(paint, stops, ns);
+	return paint;
+}
+
+// RadialGradient fills with a linear gradient
+VGPaint RadialGradientPaint(VGfloat cx, VGfloat cy, VGfloat fx, VGfloat fy, VGfloat radius, VGfloat * stops, int ns) {
+	VGfloat radialcoord[5] = { cx, cy, fx, fy, radius };
+	VGPaint paint = vgCreatePaint();
+	vgSetParameteri(paint, VG_PAINT_TYPE, VG_PAINT_TYPE_RADIAL_GRADIENT);
+	vgSetParameterfv(paint, VG_PAINT_RADIAL_GRADIENT, 5, radialcoord);
+	setstop(paint, stops, ns);
+	return paint;
 }
 
 // Deletes a paint
-void DeletePaint(VGPaint paint)
-{
-        vgDestroyPaint(paint);
+void DeletePaint(VGPaint paint) {
+	vgDestroyPaint(paint);
 }
 
-
 // Sets the fill to be paint
-void FillPaint(VGPaint paint)
-{
-        vgSetPaint(paint, VG_FILL_PATH);
+void FillPaint(VGPaint paint) {
+	vgSetPaint(paint, VG_FILL_PATH);
 }
 
 // Sets the stroke to be paint
-void StrokePaint(VGPaint paint)
-{
-        vgSetPaint(paint, VG_STROKE_PATH);
+void StrokePaint(VGPaint paint) {
+	vgSetPaint(paint, VG_STROKE_PATH);
 }
-

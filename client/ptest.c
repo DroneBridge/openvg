@@ -21,7 +21,9 @@
 #include "shapes.h"
 
 // ~55 seems to be the limit before jankiness kicks in
-#define NUM_PARTICLES 50
+// New path system is quicker so we can have more!
+// Not used now, it can be set on the cmdline with -n
+#define NUM_PARTICLES 200
 
 typedef struct particle {
 	int x, y;
@@ -32,8 +34,10 @@ typedef struct particle {
         VGPaint colour;
 } particle_t;
 
-particle_t particles[NUM_PARTICLES];
-VGPaint textColour;
+unsigned int num_particles = 50;
+particle_t *particles;
+VGPaint textColour, bgFade;
+VGPath bgFadeRect;
 
 int showTrails = 0;
 int directionRTL = 0;
@@ -41,11 +45,12 @@ int alternate = 1;
 double gravity = 0.5;
 
 Fontinfo myFont;
+char demoText[64];
 
 // Initialize _all_ the particles
 void initParticles(int w, int h) {
 	int i;
-	for (i = 0; i < NUM_PARTICLES; i++) {
+	for (i = 0; i < num_particles; i++) {
 		particle_t *p = &particles[i];
 
 		p->x = 0;
@@ -68,7 +73,7 @@ void initParticles(int w, int h) {
 // Free _all_ the particles
 void deinitParticles() {
 	int i;
-	for (i = 0; i < NUM_PARTICLES; i++) {
+	for (i = 0; i < num_particles; i++) {
 		particle_t *p = &particles[i];
                 DeletePaint(p->colour);
                 DeletePath(p->path);
@@ -76,11 +81,11 @@ void deinitParticles() {
 }
 
 void paintBG(int w, int h) {
-	if (!showTrails)
-		return Background(0, 0, 0);
+ 	if (!showTrails)
+		return WindowClear();
 
-	Fill(0, 0, 0, 0.3);
-	Rect(0, 0, w, h);
+        FillPaint(bgFade);
+	DrawPath(bgFadeRect);
 }
 
 void draw(int w, int h) {
@@ -90,18 +95,13 @@ void draw(int w, int h) {
 	paintBG(w, h);
 
         FillPaint(textColour);
-        TextMid(w/2, 10, "Particle demo", myFont, 36);
+        TextMid(w/2, 10, demoText, myFont, 36);
 
-	for (i = 0; i < NUM_PARTICLES; i++) {
+	for (i = 0; i < num_particles; i++) {
 		p = &particles[i];
-/*
-		Fill(p->r, p->g, p->b, 1.0);
-		Circle(p->x, p->y, p->radius);
-*/
+
                 FillPaint(p->colour);
-                Translate(p->x, p->y);
-                DrawPath(p->path);
-                Translate(-p->x, -p->y);
+                DrawPathAt(p->x, p->y, p->path);
                 
 		// Apply the velocity
 		p->x += p->vx;
@@ -167,6 +167,13 @@ void setOptions(int argc, char **argv) {
 			gravity = atof(argv[i+1]);
 			printf("Gravity set to %.2f\n", gravity);
 		}
+                if (option == 'n' && i+1 < argc) {
+                        num_particles = atoi(argv[i+1]);
+                        if (num_particles < 1) num_particles = 1;
+                        if (num_particles > 2000) num_particles = 2000;
+                        printf("Particle count set to %d\n", num_particles);
+                }
+                
 	}
 }
 
@@ -181,18 +188,23 @@ int main(int argc, char **argv) {
 	srand(time(NULL));
 
 	setOptions(argc, argv);
-
+        particles = malloc(num_particles * sizeof *particles);
+        
 	int w, h;
 	init(&w, &h);
 	initParticles(w, h);
 
-        myFont = LoadTTF(argc==2 ? argv[1] : "URW Chancery L");
+        snprintf(demoText, 63, "Particle demo with %d particles", num_particles);
+        myFont = LoadTTF("URW Chancery L");
         textColour = Paint(255, 255, 255, 1.0f);
+        bgFade = Paint(0, 0, 0, 0.3f);
+        bgFadeRect = RectPath(0, 0, w, h);
         
 	Start(w, h);
-
+        Background(0, 0, 0);
+        
 	int i = 0;
-        int frames = 1000;
+        int frames = -1; // -1 is a very long time!
         while (frames--) {
 		draw(w, h);
 
@@ -208,6 +220,8 @@ int main(int argc, char **argv) {
         deinitParticles();
         unloadfont(myFont);
         DeletePaint(textColour);
+        DeletePaint(bgFade);
+        DeletePath(bgFadeRect);
         finish();
         return 0;
 }

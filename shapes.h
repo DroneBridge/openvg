@@ -51,19 +51,20 @@ extern "C" {
 
 	// Added by Paeryn
 	extern void initWindowSize(int x, int y, unsigned int w, unsigned int h);
-        extern Fontinfo LoadTTFFile(const char *fname);
-        extern Fontinfo LoadTTF(const char *font_style);
-        extern void UnloadTTF(Fontinfo f);
-        extern void FontAutoHint(Fontinfo f, int autohint);
-        extern void FontKerning(Fontinfo f, int kerning);
-        extern VGfloat TextHeight(Fontinfo f, int pointsize);
+	extern Fontinfo LoadTTFFile(const char *fname);
+	extern Fontinfo LoadTTF(const char *font_style);
+	extern void UnloadTTF(Fontinfo f);
+	extern void FontKerning(Fontinfo f, int kerning);
+	extern VGfloat TextHeight(Fontinfo f, int pointsize);
 	extern VGfloat TextDepth(Fontinfo f, int pointsize);
-        extern VGfloat TextLineHeight(Fontinfo f, int pointsize);
-        
+	extern VGfloat TextLineHeight(Fontinfo f, int pointsize);
+
 	extern void AreaClear(unsigned int x, unsigned int y, unsigned int w, unsigned int h);
 	extern void WindowClear();
 	extern void WindowOpacity(unsigned int alpha);
 	extern void WindowPosition(int x, int y);
+
+	// Outline shapes
 	extern void CbezierOutline(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat);
 	extern void QbezierOutline(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat);
 	extern void RectOutline(VGfloat, VGfloat, VGfloat, VGfloat);
@@ -71,24 +72,28 @@ extern "C" {
 	extern void EllipseOutline(VGfloat, VGfloat, VGfloat, VGfloat);
 	extern void CircleOutline(VGfloat, VGfloat, VGfloat);
 	extern void ArcOutline(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat);
-        extern VGPath EllipsePath(VGfloat x, VGfloat y, VGfloat w, VGfloat h);
-        extern VGPath CirclePath(VGfloat x, VGfloat y, VGfloat r);
-        extern void DrawPath(VGPath path);
-        extern void DrawPathOitloine(VGPath path);
-        extern void DeletePath(VGPath path);
+	// Path shapes
+	extern VGPath CbezierPath(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat);
+	extern VGPath QbezierPath(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat);
+	extern VGPath PolygonPath(VGfloat *, VGfloat *, VGint);
+	extern VGPath RectPath(VGfloat, VGfloat, VGfloat, VGfloat);
+	extern VGPath LinePath(VGfloat, VGfloat, VGfloat, VGfloat);
+	extern VGPath RoundrectPath(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat);
+	extern VGPath EllipsePath(VGfloat x, VGfloat y, VGfloat w, VGfloat h);
+	extern VGPath CirclePath(VGfloat x, VGfloat y, VGfloat r);
+	extern VGPath ArcPath(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat);
+	extern void DrawPath(VGPath path);
+	extern void DrawPathAt(VGfloat x, VGfloat y, VGPath path);
+	extern void DrawPathOutline(VGPath path);
+	extern void DrawPathOutlineAt(VGfloat x, VGfloat y, VGPath path);
+	extern void DeletePath(VGPath path);
 
-        extern VGPaint Paint(int r, int g, int b, float a);
-        extern void DeletePaint(VGPaint paint);
-        extern void FillPaint(VGPaint paint);
-        extern void DtrokePaint(VGPaint paint);
-        
-                // Shapes error values
-        typedef enum shapesErrorCode {
-                SHAPES_QUIET = -1,
-                SHAPES_NO_ERROR = 0,
-                SHAPES_NO_FONT_ERROR = 0x5000
-        } shapesErrorCode;
-        extern shapesErrorCode vg_error;
+	extern VGPaint Paint(unsigned int r, unsigned int g, unsigned int b, float a);
+	extern VGPaint LinearGradientPaint(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat *, int);
+	extern VGPaint RadialGradientPaint(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat *, int);
+	extern void DeletePaint(VGPaint paint);
+	extern void FillPaint(VGPaint paint);
+	extern void StrokePaint(VGPaint paint);
 #if defined(__cplusplus)
 }
 #endif
