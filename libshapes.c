@@ -41,8 +41,15 @@ static unsigned int init_h = 0;
 static VGuint *glyph_string = NULL;
 static VGfloat *glyph_kern = NULL;
 
-// hold the paths for unit size basic shapes
+// hold the paths for basic shapes. Shapes that need a variable number
+// of segments are handled by common_path.
 static VGPath common_path = VG_INVALID_HANDLE;
+static VGPath cbezier_path = VG_INVALID_HANDLE;
+static VGPath qbezier_path = VG_INVALID_HANDLE;
+static VGPath rect_path = VG_INVALID_HANDLE;
+static VGPath line_path = VG_INVALID_HANDLE;
+static VGPath roundrect_path = VG_INVALID_HANDLE;
+static VGPath ellipse_path = VG_INVALID_HANDLE;
 static VGPaint fill_paint = VG_INVALID_HANDLE;
 static VGPaint stroke_paint = VG_INVALID_HANDLE;
 
@@ -51,8 +58,8 @@ static VGPaint stroke_paint = VG_INVALID_HANDLE;
 //
 
 // terminal settings structures
-struct termios new_term_attr;
-struct termios orig_term_attr;
+static struct termios new_term_attr;
+static struct termios orig_term_attr;
 
 // saveterm saves the current terminal settings
 void saveterm() {
@@ -336,10 +343,48 @@ void init(int *w, int *h) {
 	fill_paint = vgCreatePaint();
 	stroke_paint = vgCreatePaint();
 	common_path = vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 0, 0, VG_PATH_CAPABILITY_APPEND_TO);
+	cbezier_path =
+	    vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 2, 8,
+			 VG_PATH_CAPABILITY_APPEND_TO | VG_PATH_CAPABILITY_MODIFY);
+	VGubyte segments[] = { VG_MOVE_TO_ABS, VG_CUBIC_TO };
+	VGfloat coords[] = { 0, 0, 1, -1, 2, 1, 3, 0 };
+	vgAppendPathData(cbezier_path, 2, segments, coords);
+
+	qbezier_path =
+	    vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 2, 6,
+			 VG_PATH_CAPABILITY_APPEND_TO | VG_PATH_CAPABILITY_MODIFY);
+	segments[1] = VG_QUAD_TO;
+	vgAppendPathData(qbezier_path, 2, segments, coords);
+
+	rect_path =
+	    vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 5, 5,
+			 VG_PATH_CAPABILITY_APPEND_TO | VG_PATH_CAPABILITY_MODIFY);
+	vguRect(rect_path, 0, 0, 1, 1);
+
+	line_path =
+	    vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 2, 4,
+			 VG_PATH_CAPABILITY_APPEND_TO | VG_PATH_CAPABILITY_MODIFY);
+	vguLine(line_path, 0, 0, 1, 1);
+
+	roundrect_path =
+	    vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 10, 26,
+			 VG_PATH_CAPABILITY_APPEND_TO | VG_PATH_CAPABILITY_MODIFY);
+	vguRoundRect(roundrect_path, 0, 0, 2, 2, 1, 1);
+
+	ellipse_path =
+	    vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 4, 12,
+			 VG_PATH_CAPABILITY_APPEND_TO | VG_PATH_CAPABILITY_MODIFY);
+	vguEllipse(ellipse_path, 0, 0, 1, 1);
 }
 
 // finish cleans up
 void finish() {
+	vgDestroyPath(ellipse_path);
+	vgDestroyPath(roundrect_path);
+	vgDestroyPath(line_path);
+	vgDestroyPath(rect_path);
+	vgDestroyPath(qbezier_path);
+	vgDestroyPath(cbezier_path);
 	vgDestroyPaint(stroke_paint);
 	vgDestroyPaint(fill_paint);
 	vgDestroyPath(common_path);
@@ -639,31 +684,30 @@ VGfloat TextLineHeight(Fontinfo f, int pointsize) {
 // newpath creates path data
 // Changed capabilities as others not needed at the moment - allows possible
 // driver optimisations.
-// Changed to just clear out and re-use a common path.
-VGPath newpath() {
+// Changed again to just clear out and re-use a common path.
+static inline VGPath newpath() {
 	vgClearPath(common_path, VG_PATH_CAPABILITY_APPEND_TO);
 	return common_path;
 }
 
-// makecurve makes path data using specified segments and coordinates
-void makecurve(VGubyte * segments, VGfloat * coords, VGbitfield flags) {
-	VGPath path = newpath();
-	vgAppendPathData(path, 2, segments, coords);
-	vgDrawPath(path, flags);
-}
+// Shapes that have constant segment sizes are drawn by just modifying
+// the coordinates of the shape's global path. This saves the constant
+// allocation/deallocation which seems to periodically stall the RPi's
+// gpu. These routines rely on knowledge of how the RPi's vgu routines
+// create paths - other implementations my differ!
 
 // CBezier makes a quadratic bezier curve
 void Cbezier(VGfloat sx, VGfloat sy, VGfloat cx, VGfloat cy, VGfloat px, VGfloat py, VGfloat ex, VGfloat ey) {
-	VGubyte segments[] = { VG_MOVE_TO_ABS, VG_CUBIC_TO };
-	VGfloat coords[] = { sx, sy, cx, cy, px, py, ex, ey };
-	makecurve(segments, coords, VG_FILL_PATH | VG_STROKE_PATH);
+	const VGfloat coords[8] = { sx, sy, cx, cy, px, py, ex, ey };
+	vgModifyPathCoords(cbezier_path, 0, 2, coords);
+	vgDrawPath(cbezier_path, VG_FILL_PATH | VG_STROKE_PATH);
 }
 
 // QBezier makes a quadratic bezier curve
 void Qbezier(VGfloat sx, VGfloat sy, VGfloat cx, VGfloat cy, VGfloat ex, VGfloat ey) {
-	VGubyte segments[] = { VG_MOVE_TO_ABS, VG_QUAD_TO };
-	VGfloat coords[] = { sx, sy, cx, cy, ex, ey };
-	makecurve(segments, coords, VG_FILL_PATH | VG_STROKE_PATH);
+	const VGfloat coords[6] = { sx, sy, cx, cy, ex, ey };
+	vgModifyPathCoords(qbezier_path, 0, 2, coords);
+	vgDrawPath(qbezier_path, VG_FILL_PATH | VG_STROKE_PATH);
 }
 
 // interleave interleaves arrays of x, y into a single array
@@ -695,30 +739,42 @@ void Polyline(VGfloat * x, VGfloat * y, VGint n) {
 
 // Rect makes a rectangle at the specified location and dimensions
 void Rect(VGfloat x, VGfloat y, VGfloat w, VGfloat h) {
-	VGPath path = newpath();
-	vguRect(path, x, y, w, h);
-	vgDrawPath(path, VG_FILL_PATH | VG_STROKE_PATH);
+	const VGfloat coords[5] = { x, y, w, h, -w };
+	vgModifyPathCoords(rect_path, 0, 4, coords);
+	vgDrawPath(rect_path, VG_FILL_PATH | VG_STROKE_PATH);
 }
 
 // Line makes a line from (x1,y1) to (x2,y2)
 void Line(VGfloat x1, VGfloat y1, VGfloat x2, VGfloat y2) {
-	VGPath path = newpath();
-	vguLine(path, x1, y1, x2, y2);
-	vgDrawPath(path, VG_FILL_PATH | VG_STROKE_PATH);
+	const VGfloat coords[4] = { x1, y1, x2, y2 };
+	vgModifyPathCoords(line_path, 0, 2, coords);
+	vgDrawPath(line_path, VG_STROKE_PATH);
 }
 
 // Roundrect makes an rounded rectangle at the specified location and dimensions
 void Roundrect(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat rw, VGfloat rh) {
-	VGPath path = newpath();
-	vguRoundRect(path, x, y, w, h, rw, rh);
-	vgDrawPath(path, VG_FILL_PATH | VG_STROKE_PATH);
+	const VGfloat coords[26] = { x + rw / 2, y,
+		w - rw,
+		rw / 2, rh / 2, 0, rw / 2, rh / 2,
+		h - rh,
+		rw / 2, rh / 2, 0, -rw / 2, rh / 2,
+		-(w - rw),
+		rw / 2, rh / 2, 0, -rw / 2, -rh / 2,
+		-(h - rh),
+		rw / 2, rw / 2, 0, rw / 2, -rh / w
+	};
+	vgModifyPathCoords(roundrect_path, 0, 9, coords);
+	vgDrawPath(roundrect_path, VG_FILL_PATH | VG_STROKE_PATH);
 }
 
 // Ellipse makes an ellipse at the specified location and dimensions
 void Ellipse(VGfloat x, VGfloat y, VGfloat w, VGfloat h) {
-	VGPath path = newpath();
-	vguEllipse(path, x, y, w, h);
-	vgDrawPath(path, VG_FILL_PATH | VG_STROKE_PATH);
+	const VGfloat coords[12] = { x + w / 2, y,
+		w / 2, h / 2, 0, -w, 0,
+		w / 2, h / 2, 0, w, 0
+	};
+	vgModifyPathCoords(ellipse_path, 0, 3, coords);
+	vgDrawPath(ellipse_path, VG_FILL_PATH | VG_STROKE_PATH);
 }
 
 // Circle makes a circle at the specified location and dimensions
@@ -812,37 +868,49 @@ void WindowPosition(int x, int y) {
 
 // CBezier makes a quadratic bezier curve, stroked
 void CbezierOutline(VGfloat sx, VGfloat sy, VGfloat cx, VGfloat cy, VGfloat px, VGfloat py, VGfloat ex, VGfloat ey) {
-	VGubyte segments[] = { VG_MOVE_TO_ABS, VG_CUBIC_TO };
-	VGfloat coords[] = { sx, sy, cx, cy, px, py, ex, ey };
-	makecurve(segments, coords, VG_STROKE_PATH);
+	const VGfloat coords[8] = { sx, sy, cx, cy, px, py, ex, ey };
+	vgModifyPathCoords(cbezier_path, 0, 2, coords);
+	vgDrawPath(cbezier_path, VG_STROKE_PATH);
 }
 
 // QBezierOutline makes a quadratic bezier curve, outlined 
 void QbezierOutline(VGfloat sx, VGfloat sy, VGfloat cx, VGfloat cy, VGfloat ex, VGfloat ey) {
-	VGubyte segments[] = { VG_MOVE_TO_ABS, VG_QUAD_TO };
-	VGfloat coords[] = { sx, sy, cx, cy, ex, ey };
-	makecurve(segments, coords, VG_STROKE_PATH);
+	const VGfloat coords[6] = { sx, sy, cx, cy, ex, ey };
+	vgModifyPathCoords(qbezier_path, 0, 2, coords);
+	vgDrawPath(qbezier_path, VG_STROKE_PATH);
 }
 
 // RectOutline makes a rectangle at the specified location and dimensions, outlined 
 void RectOutline(VGfloat x, VGfloat y, VGfloat w, VGfloat h) {
-	VGPath path = newpath();
-	vguRect(path, x, y, w, h);
-	vgDrawPath(path, VG_STROKE_PATH);
+	const VGfloat coords[5] = { x, y, w, h, -w };
+	vgModifyPathCoords(rect_path, 0, 4, coords);
+	vgDrawPath(rect_path, VG_STROKE_PATH);
 }
 
 // RoundrectOutline  makes an rounded rectangle at the specified location and dimensions, outlined 
 void RoundrectOutline(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat rw, VGfloat rh) {
-	VGPath path = newpath();
-	vguRoundRect(path, x, y, w, h, rw, rh);
-	vgDrawPath(path, VG_STROKE_PATH);
+	const VGfloat coords[26] = { x + rw / 2, y,
+		w - rw,
+		rw / 2, rh / 2, 0, rw / 2, rh / 2,
+		h - rh,
+		rw / 2, rh / 2, 0, -rw / 2, rh / 2,
+		-(w - rw),
+		rw / 2, rh / 2, 0, -rw / 2, -rh / 2,
+		-(h - rh),
+		rw / 2, rw / 2, 0, rw / 2, -rh / w
+	};
+	vgModifyPathCoords(roundrect_path, 0, 9, coords);
+	vgDrawPath(roundrect_path, VG_STROKE_PATH);
 }
 
 // EllipseOutline makes an ellipse at the specified location and dimensions, outlined
 void EllipseOutline(VGfloat x, VGfloat y, VGfloat w, VGfloat h) {
-	VGPath path = newpath();
-	vguEllipse(path, x, y, w, h);
-	vgDrawPath(path, VG_STROKE_PATH);
+	const VGfloat coords[12] = { x + w / 2, y,
+		w / 2, h / 2, 0, -w, 0,
+		w / 2, h / 2, 0, w, 0
+	};
+	vgModifyPathCoords(ellipse_path, 0, 3, coords);
+	vgDrawPath(ellipse_path, VG_STROKE_PATH);
 }
 
 // CircleOutline makes a circle at the specified location and dimensions, outlined

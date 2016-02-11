@@ -1,14 +1,18 @@
-// particles.c - Simple particles example using the OpenVG Testbed
+// ptest.c - Simple particles example using the OpenVG Testbed
 // via Nick Williams (github.com/nilliams)
 // https://gist.githubusercontent.com/nilliams/7705819/raw/9cbb5a1298d6eef858639095148ede2c33cb6d40/particles.c
+//
+// Modified by paeryn (paeryn8@gmail.com) to create particles as path
+// objects.
 //
 // Usage: ./particles [OPTIONS]
 //
 // Options:
-//  -t  show trails
-//
-//  -r  right-to-left only  (direction alternates by default)
-//  -l  left-to-right only
+//  -t    show trails
+//  -n #  draw # number of particles per frame
+//  -g #  set gravity to #
+//  -r    right-to-left only  (direction alternates by default)
+//  -l    left-to-right only
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -63,6 +67,11 @@ void initParticles(int w, int h) {
 		p->radius = (rand() % 20) + 20;
                 p->colour = Paint(p->r, p->g, p->b, 1.0);
                 p->path = CirclePath(0, 0, p->radius);
+                if (p->path == VG_INVALID_HANDLE) {
+                        printf("Ran out of gpu memory at %d particles\n", i);
+                        exit(1);
+                }
+
                 if (directionRTL) {
 			p->vx *= -1;
 			p->x = w;
@@ -170,7 +179,7 @@ void setOptions(int argc, char **argv) {
                 if (option == 'n' && i+1 < argc) {
                         num_particles = atoi(argv[i+1]);
                         if (num_particles < 1) num_particles = 1;
-                        if (num_particles > 2000) num_particles = 2000;
+                        if (num_particles > 10000) num_particles = 10000;
                         printf("Particle count set to %d\n", num_particles);
                 }
                 
