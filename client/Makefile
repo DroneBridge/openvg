@@ -42,3 +42,6 @@ indent:
 
 ptest:	ptest.c ../libshapes.o ../oglinit.o ../fontsystem.o
 	$(CC) $(CCOPTS) $(INCLUDEFLAGS) -o  ptest ptest.c ../libshapes.o ../oglinit.o ../fontsystem.o $(LIBFLAGS)
+
+fontlist:	fontlist.c ../libshapes.o ../oglinit.o ../fontsystem.o
+	$(CC) $(CCOPTS) $(INCLUDEFLAGS) -o  fontlist fontlist.c ../libshapes.o ../oglinit.o ../fontsystem.o $(LIBFLAGS)

@@ -562,11 +562,10 @@ int stringToGlyphs(const char *s, Fontinfo f) {
 
 		glyph_string_len = str_length;
 		glyph_string = malloc(glyph_string_len * sizeof *glyph_string);
-		if (f->Kerning)
-			glyph_kern = malloc(glyph_string_len * 2 * sizeof *glyph_kern);
+                glyph_kern = malloc(glyph_string_len * 2 * sizeof *glyph_kern);
 	}
-	wchar_t wstr[str_length + 1];
-	mbsrtowcs(wstr, &s, str_length + 1, &state);
+	wchar_t wstr[str_length];
+	mbsrtowcs(wstr, &s, str_length, &state);
 	glyph_length = 0;
 	int i;
 	if (f->CharacterMap) {				   // libshapes classic fonts
@@ -579,8 +578,8 @@ int stringToGlyphs(const char *s, Fontinfo f) {
 		}
 	} else {					   // fontsystem fonts
 		VGuint prev = 0xffffffff;
-		VGfloat *kernX = &glyph_kern[0];
-		VGfloat *kernY = &glyph_kern[str_length];
+		VGfloat *kernX = glyph_kern;
+		VGfloat *kernY = glyph_kern + str_length;
 		for (i = 0; i < str_length; i++) {
 			VGuint glyph = font_CharToGlyph(f->face, wstr[i]);
 			glyph_string[i] = glyph;
