@@ -10,16 +10,15 @@
 
 Fontinfo myfont;
 
-// DroidSansFallbackFull and DroidSansJapanese are too big.
 int main(int argc, char *argv[]) {
 	char *fontpaths[] = {
-//		"/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
+		"/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
 		"/usr/share/fonts/truetype/droid/DroidSerif-Bold.ttf",
 		"/usr/share/fonts/truetype/droid/DroidSerif-Italic.ttf",
 		"/usr/share/fonts/truetype/droid/DroidSansArmenian.ttf",
 		"/usr/share/fonts/truetype/droid/DroidNaskh-Bold.ttf",
 		"/usr/share/fonts/truetype/droid/DroidSerif-BoldItalic.ttf",
-//		"/usr/share/fonts/truetype/droid/DroidSansJapanese.ttf",
+		"/usr/share/fonts/truetype/droid/DroidSansJapanese.ttf",
 		"/usr/share/fonts/truetype/droid/DroidSansArabic.ttf",
 		"/usr/share/fonts/truetype/droid/DroidSans-Bold.ttf",
 		"/usr/share/fonts/truetype/droid/DroidSansMono.ttf",
@@ -95,9 +94,9 @@ int main(int argc, char *argv[]) {
 	}
 	beginlist = atoi(argv[1]);
 	endlist = atoi(argv[2]);
-                // 69 fonts listed now as I removed the 2 troublesome ones
-	if (beginlist < 0 || endlist > 69) {
-		fprintf(stderr, "begin and end must be between 0, 69\n");
+
+	if (beginlist < 0 || endlist > 71) {
+                fprintf(stderr, "begin and end must be between 0, 71\n");
 		exit(2);
 	}
 	if (beginlist >= endlist) {
@@ -122,7 +121,7 @@ int main(int argc, char *argv[]) {
 	fontsize = 20;
 	colwidth = (VGfloat) fontsize *30;
 	left = (VGfloat) width *0.025;
-	bottom = (VGfloat) height *0.05;
+	bottom = (VGfloat) height *0.05; // Lowered to fit all on screen
 	top = (VGfloat) height *0.90;
 	colwidth = (VGfloat) fontsize *30;
 	vspace = (VGfloat) fontsize *2.0;

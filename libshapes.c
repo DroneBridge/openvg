@@ -335,9 +335,7 @@ void init(int *w, int *h) {
 	*h = state->window_height;
 
 	if (!SansTypeface || !SerifTypeface || !MonoTypeface) {
-		puts("libshapes failed to initialise.");
-		finish();
-		exit(1);
+		fputs("libshapes failed to load the default fonts.", stderr);
 	}
 
 	fill_paint = vgCreatePaint();
@@ -375,6 +373,11 @@ void init(int *w, int *h) {
 	    vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 4, 12,
 			 VG_PATH_CAPABILITY_APPEND_TO | VG_PATH_CAPABILITY_MODIFY);
 	vguEllipse(ellipse_path, 0, 0, 1, 1);
+
+        VGErrorCode vgerror = vgGetError();
+        if (vgerror != VG_NO_ERROR) {
+                fprintf(stderr, "OpenVG gave error %x whilst initilising libshapes.", vgerror);
+        }
 }
 
 // finish cleans up
