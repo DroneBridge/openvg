@@ -43,7 +43,7 @@ Here is the graphics equivalent of "hello, world"
 
 Due to the new string handling in Text() the string format is defined by the locale system.
 By default in C this is basic ASCII (chars 0 -> 127), if your string contains characters outside this
-range then you need to #include <locale.h> and set the locale to your system default with
+range then you need to #include &ltlocale.h&gt and set the locale to your system default with
 
 	setlocale(LC_CTYPE, "");
 
@@ -244,7 +244,7 @@ Other scalable formats that FreeType2 supports should also work.
 Loads a font using the font's name and style. This uses fontconfig to search the installed fonts
 for the nearest matching font and loads that (so if the requested font isn't found a similar one is used).
 The name is the family name of the font e.g, DejaVuSans, Roboto, Courier and can also include
-a style like Italic, Bold. If a style is wanted it is put directly after the family name and a colon
+a style like Italic or Bold. If a style is wanted it is put directly after the family name and a colon
 e.g. Roboto:Italic
 
 	void unloadfont(Fontinfo font)
@@ -266,7 +266,7 @@ Any other value means kerning is on.
 
 A font's family name can be queried by reading font->Name
 A font's style can be queried by reading font->Style
-Do not edit these strings!
+**Do not edit these strings!**
 
 ###Original font loading
 
