@@ -3,8 +3,8 @@ ifdef RPISDK
 endif
 
 CC = $(CROSS_COMPILE)gcc
-CCOPTS = -O0 -g -Wall
-#CCOPTS = -O2 -Wall
+#CCOPTS = -O0 -g -Wall
+CCOPTS = -O2 -Wall
 
 INCLUDEFLAGS=-I$(RPISDK)/opt/vc/include -I$(RPISDK)/opt/vc/include/interface/vmcs_host/linux -I$(RPISDK)/opt/vc/include/interface/vcos/pthreads -I..
 LIBFLAGS= -Wl,-rpath=$(RPISDK)/opt/vc/lib -L$(RPISDK)/opt/vc/lib -lEGL -lGLESv2 -lbcm_host -pthread -ljpeg -lfreetype -lfontconfig
@@ -45,3 +45,6 @@ ptest:	ptest.c ../libshapes.o ../oglinit.o ../fontsystem.o
 
 fontlist:	fontlist.c ../libshapes.o ../oglinit.o ../fontsystem.o
 	$(CC) $(CCOPTS) $(INCLUDEFLAGS) -o  fontlist fontlist.c ../libshapes.o ../oglinit.o ../fontsystem.o $(LIBFLAGS)
+
+fonttest:	fonttest.c
+	$(CC) $(CCOPTS) $(INCLUDEFLAGS) -o fonttest fonttest.c -lshapes $(LIBFLAGS)

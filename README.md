@@ -1,8 +1,10 @@
 #Testbed for exploring OpenVG on the Raspberry Pi.
-Forked version of ajstarks' libshapes. Windowed mode and outline shapes
-functions by paeryn (paeryn8@gmail.com).
 
 <a href="http://www.flickr.com/photos/ajstarks/7811750326/" title="rotext by ajstarks, on Flickr"><img src="http://farm8.staticflickr.com/7249/7811750326_614ea891ae.jpg" width="500" height="281" alt="rotext"></a>
+
+Experimental extension of ajstarks' library by Paeryn.
+  Added direct font loading (no longer need to use font2openvg to convert).
+  Changed some of the basic shape drawing routines to avoid constant memory allocation/deallocations.
 
 ## First program
 
@@ -10,7 +12,6 @@ Here is the graphics equivalent of "hello, world"
 
 	// first OpenVG program
 	// Anthony Starks (ajstarks@gmail.com)
-	// Adapted for paeryn's fork by paeryn
 	#include <stdio.h>
 	#include <stdlib.h>
 	#include <unistd.h>
@@ -23,26 +24,29 @@ Here is the graphics equivalent of "hello, world"
 		int width, height;
 		char s[3];
 	
-		// Request a window size of 600x360 with top-left at 20,20
-		initWindowSize(20, 20, 600, 360);
 		init(&width, &height);					// Graphics initialization
 	
 		Start(width, height);					// Start the picture
 		Background(0, 0, 0);					// Black background
 		Fill(44, 77, 232, 1);					// Big blue marble
 		Circle(width / 2, 0, width);			// The "world"
-
 		Fill(255, 255, 255, 1);					// White text
 		TextMid(width / 2, height / 2, "hello, world", SerifTypeface, width / 10);	// Greetings 
 		End();						   			// End the picture
-		WindowOpacity(128);	// Make the window half opacity
-					// Can now see what is behind it	
+	
 		fgets(s, 2, stdin);				   		// look at the pic, end with [RETURN]
 		finish();					            // Graphics cleanup
 		exit(0);
 	}
 
 <a href="http://www.flickr.com/photos/ajstarks/7828969180/" title="hellovg by ajstarks, on Flickr"><img src="http://farm9.staticflickr.com/8436/7828969180_b73db3bf19.jpg" width="500" height="281" alt="hellovg"></a>
+
+Due to the new string handling in Text() the string format is defined by the locale system.
+By default in C this is basic ASCII (chars 0 -> 127), if your string contains characters outside this
+range then you need to #include <locale.h> and set the locale to your system default with
+
+	setlocale(LC_CTYPE, "");
+
 
 ## API
 
@@ -79,20 +83,8 @@ Shutdown the graphics. This should end every program.
 	void Start(int width, int height)
 Begin the picture, clear the screen with a default white, set the stroke and fill to black.
 
-	void WindowClear()
-Clears the window to the colour set by Background() (or White if Start() was
-called and no subsequent Background() or BackgroundRGB() call has been made).
-Use this rather than Start() to avoid having to set the background colour every
-time if you want anything other than White and don't want the stroke, fill
-and stroke width settings reset.
-
 	void End()
 End the picture, rendering to the screen.
-
-	void WindowOpacity(unsigned int alpha)
-Sets the global alpha value of the window for display purposes (doesn't affect
-the alpha channel of the drawing surface).
-The alpha value can be between 0 (fully transparent) and 255 (fully opaque).
 
 	void SaveEnd(char *filename)
 End the picture, rendering to the screen, save the raster to the named file as 4-byte RGBA words, with a stride of
@@ -207,6 +199,9 @@ Return a font's height
 	TextDepth(Fontinfo f, int pointsize)
 Return a font's distance beyond the baseline.
 
+	TextLineHeight(Fontinfo f, int pointsize)
+Return the font's recommended distance between lines.
+
 	void Image(VGfloat x, VGfloat y, int w, int h, char * filename)
 place a JPEG image with dimensions (w,h) at (x,y).
 
@@ -234,6 +229,47 @@ Ends clipping area
 
 ## Using fonts
 
+### Supplimental: New font system
+The old embedded font method is still supported, but new functions allow loading fonts directly.
+The new system will try to load every glyph in the font. Some fonts may not load if they contain too many glyphs.
+
+
+Fontinfo is now a pointer type rather than a structure.
+
+	Fontinfo LoadTTFFile(const char *filename)
+Loads a font using it's filename. The font can be either TrueType (.ttf) or Postscript Type 1 (.pfa, .pfb)
+Other scalable formats that FreeType2 supports should also work.
+
+	Fontinfo LoadTTF(const char *fontname)
+Loads a font using the font's name and style. This uses fontconfig to search the installed fonts
+for the nearest matching font and loads that (so if the requested font isn't found a similar one is used).
+The name is the family name of the font e.g, DejaVuSans, Roboto, Courier and can also include
+a style like Italic, Bold. If a style is wanted it is put directly after the family name and a colon
+e.g. Roboto:Italic
+
+	void unloadfont(Fontinfo font)
+Unloads the font. This replaces the old unload function. It now takes just one parameter,
+the Fontinfo that was returned from LoadTTF() or LoadTTFFile().
+
+The default fonts (SansTypeface, SerifTypeface and MonoTypeface) can now be unloaded if your program
+doesn't need them and requires more gpu memory. If you do this you MUST set the corresponding variable
+to NULL otherwise the library will try to unload them itself when you call finish().
+
+	FontKerning(Fontinfo font, int active)
+Turns on or off font kerning for the font.
+If active is 0 then it is turned off,
+if active is any other value then it is turned on if the font supports it.
+
+A font's kerning status can be tested by looking at font->Kerning
+If it is 0 then kerning is off. This will be the case if you try turning it on when the font doesn't support it.
+Any other value means kerning is on.
+
+A font's family name can be queried by reading font->Name
+A font's style can be queried by reading font->Style
+Do not edit these strings!
+
+###Original font loading
+
 Also included is the font2openvg program, which turns font information into C source that 
 you can embed in your program. The Makefile makes font code from files found in /usr/share/fonts/truetype/ttf-dejavu/. 
 If you want to use other fonts, adjust the Makefile accordingly, or generate the font code on your own once the font2openvg program is built.
@@ -249,8 +285,10 @@ and include the generated code in your program:
 	Fontinfo DejaFont
 	
 The loadfont function creates OpenVG paths from the font data:
+Note that there are two extra parameters now, these provide the descender and ascender
+sizes of the font (how far below and above the baseline that the font goes).
 
-	DejaFont = loadfont(DejaVuSans_glyphPoints, 
+	loadfont(DejaVuSans_glyphPoints, 
             DejaVuSans_glyphPointIndices, 
         	DejaVuSans_glyphInstructions,                
         	DejaVuSans_glyphInstructionIndices, 
@@ -258,37 +296,44 @@ The loadfont function creates OpenVG paths from the font data:
             DejaVuSans_glyphAdvances,
             DejaVuSans_characterMap, 
         	DejaVuSans_glyphCount,
-            DejaVuSans_descender_height,
-            DejaVuSans_ascender_height);
+        	int DejaVuSans_descender_height,
+        	int DejaVuSans_ascender_height);
 
 The unloadfont function releases the path information:
-	
-	unloadfont(DejaFont);
+Note that the Glyphs parameter is now the Fontinfo, and the count parameter has been removed.
+	unloadfont(DejaVuSansFont);
+
+Fonts loaded this way do not support kerning, or have their name & style set.
+Also the TextLineHeight is set to be TextHeight + TextDepth (i.e. the approximate size of a character).
+
 
 # Build and run
 
-<i>Note that you will need at least 64 Mbytes of GPU RAM:</i>. You will also need the DejaVu fonts, and the jpeg and freetype libraries.
+<i>Note that you will need at least 64 Mbytes of GPU RAM:</i>. You will also need the DejaVu fonts, and the jpeg and freetype and fontconfig libraries.
 The indent tool is also useful for code formatting.  Install them via:
 
-	pi@raspberrypi ~ $ sudo apt-get install libjpeg8-dev indent libfreetype6-dev ttf-dejavu-core
+	pi@raspberrypi ~ $ sudo apt-get install libjpeg8-dev indent libfreetype6-dev ttf-dejavu-core libfontconfig1-dev
 
 Next, build the library and test:
 
-	pi@raspberrypi ~ $ git clone git://github.com/ajstarks/openvg
+	pi@raspberrypi ~ $ git clone git://github.com/paeryn/openvg
+	pi@raspberrypi ~ $ git checkout newfonts
 	pi@raspberrypi ~ $ cd openvg
 	pi@raspberrypi ~/openvg $ make
 	g++ -I/usr/include/freetype2 fontutil/font2openvg.cpp -o font2openvg -lfreetype
-	./font2openvg /usr/share/fonts/truetype/ttf-dejavu/DejaVuSans.ttf DejaVuSans.inc DejaVuSans
-	224 glyphs written
-	./font2openvg /usr/share/fonts/truetype/ttf-dejavu/DejaVuSansMono.ttf DejaVuSansMono.inc DejaVuSansMono
-	224 glyphs written
-	./font2openvg /usr/share/fonts/truetype/ttf-dejavu/DejaVuSerif.ttf DejaVuSerif.inc DejaVuSerif
-	224 glyphs written
-	gcc -O2 -Wall -I/opt/vc/include -I/opt/vc/include/interface/vmcs_host/linux -I/opt/vc/include/interface/vcos/pthreads -c libshapes.c
-	gcc -O2 -Wall -I/opt/vc/include -I/opt/vc/include/interface/vmcs_host/linux -I/opt/vc/include/interface/vcos/pthreads -c oglinit.c
+	./font2openvg /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf DejaVuSans.inc DejaVuSans
+	468 glyphs written
+	./font2openvg /usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf DejaVuSansMono.inc DejaVuSansMono
+	468 glyphs written
+	./font2openvg /usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf DejaVuSerif.inc DejaVuSerif
+	468 glyphs written
+	gcc -std=gnu89 -O2 -Wall -I/opt/vc/include -I/opt/vc/include/interface/vmcs_host/linux -I/opt/vc/include/interface/vcos/pthreads -fPIC -c oglinit.c
+	gcc -std=gnu89 -O2 -Wall -I/opt/vc/include -I/opt/vc/include/interface/vmcs_host/linux -I/opt/vc/include/interface/vcos/pthreads -fPIC -c libshapes.c
+	gcc -std=gnu89 -O2 -Wall -I/opt/vc/include -I/opt/vc/include/interface/vmcs_host/linux -I/opt/vc/include/interface/vcos/pthreads -fPIC -I/usr/include/freetype2 -c fontsystem.c
+	gcc -L/opt/vc/lib -lEGL -lGLESv2 -ljpeg -shared -o libshapes.so -Wl,-soname,libshapes.so.2.0.0 oglinit.o libshapes.o fontsystem.o
 	pi@raspberrypi ~/openvg/client $ cd client
 	pi@raspberrypi ~/openvg/client $ make test
-	cc -Wall -I/opt/vc/include -I/opt/vc/include/interface/vcos/pthreads -o shapedemo shapedemo.c ../libshapes.o ../oglinit.o -L/opt/vc/lib -lGLESv2 -ljpeg
+	gcc -O2 -Wall -I/opt/vc/include -I/opt/vc/include/interface/vmcs_host/linux -I/opt/vc/include/interface/vcos/pthreads -I.. -o shapedemo shapedemo.c ../libshapes.o ../oglinit.o ../fontsystem.o -Wl,-rpath=/opt/vc/lib -L/opt/vc/lib -lEGL -lGLESv2 -lbcm_host -pthread -ljpeg -lfreetype -lfontconfig
 	./shapedemo demo 5
 
 
@@ -323,7 +368,7 @@ The openvg shapes library can now be used in C code by including shapes.h and fo
 
 ## Go wrapper
 
-NOTE: Due to paeryn's lack of Go knowledge this version hasn't currently updadted the Go wrapper so the added functionality is not there.
+###The Go section hasn't been updated to work with the new system yet, consider it broken in this fork for now.
 
 A Go programming language wrapper for the library is found in openvg.go. Sample clients are in the directory go-client.  The API closely follows the C API; here is the "hello, world" program in Go:
 

@@ -7,7 +7,7 @@ CC = $(CROSS_COMPILE)gcc
 CCOPTS = -std=gnu89 -O2 -Wall
 
 INCLUDEFLAGS=-I$(RPISDK)/opt/vc/include -I$(RPISDK)/opt/vc/include/interface/vmcs_host/linux -I$(RPISDK)/opt/vc/include/interface/vcos/pthreads -fPIC
-LIBFLAGS=-L$(RPISDK)/opt/vc/lib -lEGL -lGLESv2 -ljpeg
+LIBFLAGS=-L$(RPISDK)/opt/vc/lib -lEGL -lGLESv2 -ljpeg -lfreetype -lfontconfig
 FONTLIB=/usr/share/fonts/truetype/dejavu
 FONTFILES=DejaVuSans.inc  DejaVuSansMono.inc DejaVuSerif.inc
 all:	font2openvg fonts library	
