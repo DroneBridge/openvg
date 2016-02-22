@@ -43,7 +43,7 @@ Here is the graphics equivalent of "hello, world"
 
 Due to the new string handling in Text() the string format is defined by the locale system.
 By default in C this is basic ASCII (chars 0 -> 127), if your string contains characters outside this
-range then you need to #include &ltlocale.h&gt and set the locale to your system default with
+range then you need to #include &lt;locale.h&gt; and set the locale to your system default with
 
 	setlocale(LC_CTYPE, "");
 
