@@ -260,7 +260,7 @@ void makeimage(VGfloat x, VGfloat y, int w, int h, VGubyte * data) {
 }
 
 // Image places an image at the specifed location
-void Image(VGfloat x, VGfloat y, int w, int h, char *filename) {
+void Image(VGfloat x, VGfloat y, int w, int h, const char *filename) {
 	VGImage img = createImageFromJpeg(filename);
 	vgSetPixels(x, y, img, 0, 0, w, h);
 	vgDestroyImage(img);
@@ -811,7 +811,7 @@ void End() {
 }
 
 // SaveEnd dumps the raster before rendering to the display 
-void SaveEnd(char *filename) {
+void SaveEnd(const char *filename) {
 	FILE *fp;
 	assert(vgGetError() == VG_NO_ERROR);
 	if (strlen(filename) == 0) {
