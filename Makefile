@@ -1,15 +1,21 @@
 ifdef RPISDK
-	CROSS_COMPILE ?= arm-linux-gnueabihf-
+CROSS_COMPILE ?= arm-linux-gnueabihf-
 endif
 
 CC = $(CROSS_COMPILE)gcc
-#CCOPTS = -std=gnu89 -O0 -g -Wall
-CCOPTS = -std=gnu89 -O2 -Wall
+CCOPTS = -std=gnu89 -Wall -Wextra -Wconversion -Wdouble-promotion -Wshadow -Wno-sign-conversion
+
+ifdef DEBUG
+CCOPTS += -O0 -g
+else
+CCOPTS += -O2
+endif
 
 INCLUDEFLAGS=-I$(RPISDK)/opt/vc/include -I$(RPISDK)/opt/vc/include/interface/vmcs_host/linux -I$(RPISDK)/opt/vc/include/interface/vcos/pthreads -fPIC
-LIBFLAGS=-L$(RPISDK)/opt/vc/lib -lEGL -lGLESv2 -ljpeg -lfreetype -lfontconfig
+LIBFLAGS=-L$(RPISDK)/opt/vc/lib -lEGL -lGLESv2 -ljpeg -lpng -lfreetype -lfontconfig -lz
 FONTLIB=/usr/share/fonts/truetype/dejavu
 FONTFILES=DejaVuSans.inc  DejaVuSansMono.inc DejaVuSerif.inc
+
 all:	font2openvg fonts library	
 
 libshapes.o:	libshapes.c shapes.h fontinfo.h fonts

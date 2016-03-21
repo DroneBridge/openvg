@@ -7,10 +7,12 @@
 //
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <wchar.h>
 #include <termios.h>
 #include <assert.h>
 #include <jpeglib.h>
+#include <png.h>
 #include "VG/openvg.h"
 #include "VG/vgu.h"
 #include "EGL/egl.h"
@@ -29,10 +31,10 @@ extern unsigned int font_CharToGlyph(void *face, unsigned long code);
 extern void font_KernData(void *face, unsigned long curr, unsigned long prev, VGfloat * kernX, VGfloat * kernY);
 
 static STATE_T _state, *state = &_state;	// global graphics state
-static int init_x = 0;		// Initial window position and size
-static int init_y = 0;
-static unsigned int init_w = 0;
-static unsigned int init_h = 0;
+static int32_t init_x = 0;		// Initial window position and size
+static int32_t init_y = 0;
+static uint32_t init_w = 0;
+static uint32_t init_h = 0;
 
 // hold the current glyph representation of a string to print. Memory
 // is allocated by the stringToGlyph function, will grow when a longer
@@ -101,7 +103,7 @@ Fontinfo loadfont(const int *Points,
 		return NULL;
 	}
 
-	int i;
+	VGint i;
 	for (i = 0; i < ng; i++) {
 		const int *p = &Points[PointIndices[i] * 2];
 		const unsigned char *instructions = &Instructions[InstructionIndices[i]];
@@ -122,14 +124,14 @@ Fontinfo loadfont(const int *Points,
 					    1.0f / 65536.0f, 0.0f, ic, p_count, VG_PATH_CAPABILITY_APPEND_TO);
 			vgAppendPathData(path, ic, instructions, p);
 		}
-		vgSetGlyphToPath(font, i, path, VG_FALSE, origin, escapement);
+		vgSetGlyphToPath(font, (VGuint)i, path, VG_FALSE, origin, escapement);
 		if (path != VG_INVALID_HANDLE)
 			vgDestroyPath(path);
 	}
 
 	f->CharacterMap = cmap;
 	f->GlyphAdvances = adv;
-	f->Count = ng;
+	f->Count = (unsigned int)ng;
 	f->DescenderHeight = (VGfloat) descender / 65536.0f;
 	f->AscenderHeight = (VGfloat) ascender / 65536.0f;
 	f->Height = f->AscenderHeight - f->DescenderHeight;	// Guesstimate
@@ -201,7 +203,7 @@ VGImage createImageFromJpeg(const char *filename) {
 	height = jdc.output_height;
 
 	// Allocate buffer using jpeg allocator
-	bbpp = jdc.output_components;
+	bbpp = (unsigned int)jdc.output_components;
 	bstride = width * bbpp;
 	buffer = (*jdc.mem->alloc_sarray)
 	    ((j_common_ptr) & jdc, JPOOL_IMAGE, bstride, 1);
@@ -238,8 +240,8 @@ VGImage createImageFromJpeg(const char *filename) {
 	}
 
 	// Create VG image
-	img = vgCreateImage(rgbaFormat, width, height, VG_IMAGE_QUALITY_BETTER);
-	vgImageSubData(img, data, dstride, rgbaFormat, 0, 0, width, height);
+	img = vgCreateImage(rgbaFormat, (VGint)width, (VGint)height, VG_IMAGE_QUALITY_BETTER);
+	vgImageSubData(img, data, (VGint)dstride, rgbaFormat, 0, 0, (VGint)width, (VGint)height);
 
 	// Cleanup
 	jpeg_destroy_decompress(&jdc);
@@ -250,8 +252,8 @@ VGImage createImageFromJpeg(const char *filename) {
 }
 
 // makeimage makes an image from a raw raster of red, green, blue, alpha values
-void makeimage(VGfloat x, VGfloat y, int w, int h, VGubyte * data) {
-	unsigned int dstride = w * 4;
+void makeimage(VGfloat x, VGfloat y, VGint w, VGint h, VGubyte * data) {
+	VGint dstride = w * 4;
 	VGImageFormat rgbaFormat = VG_sABGR_8888;
 	VGImage img = vgCreateImage(rgbaFormat, w, h, VG_IMAGE_QUALITY_BETTER);
 	vgImageSubData(img, (void *)data, dstride, rgbaFormat, 0, 0, w, h);
@@ -260,16 +262,20 @@ void makeimage(VGfloat x, VGfloat y, int w, int h, VGubyte * data) {
 }
 
 // Image places an image at the specifed location
-void Image(VGfloat x, VGfloat y, int w, int h, const char *filename) {
+void Image(VGfloat x, VGfloat y, VGint w, VGint h, const char *filename) {
 	VGImage img = createImageFromJpeg(filename);
 	vgSetPixels(x, y, img, 0, 0, w, h);
 	vgDestroyImage(img);
 }
 
 // dumpscreen writes the raster
-void dumpscreen(int w, int h, FILE * fp) {
+void dumpscreen(VGuint w, VGuint h, FILE * fp) {
+        if (w > state->window_width)
+                w = state->window_width;
+        if (h > state->window_height)
+                h = state->window_height;
 	void *ScreenBuffer = malloc(w * h * 4);
-	vgReadPixels(ScreenBuffer, (w * 4), VG_sABGR_8888, 0, 0, w, h);
+        vgReadPixels(ScreenBuffer, (VGint)(w * 4), VG_sABGR_8888, 0, 0, (VGint)w, (VGint)h);
 	fwrite(ScreenBuffer, 1, w * h * 4, fp);
 	free(ScreenBuffer);
 }
@@ -279,7 +285,7 @@ Fontinfo SansTypeface, SerifTypeface, MonoTypeface;
 // initWindowSize requests a specific window size & position, if not called
 // then init() will open a full screen window.
 // Done this way to preserve the original init() behaviour.
-void initWindowSize(int x, int y, unsigned int w, unsigned int h) {
+void initWindowSize(int32_t x, int32_t y, uint32_t w, uint32_t h) {
 	init_x = x;
 	init_y = y;
 	init_w = w;
@@ -287,7 +293,7 @@ void initWindowSize(int x, int y, unsigned int w, unsigned int h) {
 }
 
 // init sets the system to its initial state
-void init(int *w, int *h) {
+void init(uint32_t *w, uint32_t *h) {
 	bcm_host_init();
 	memset(state, 0, sizeof(*state));
 	state->window_x = init_x;
@@ -460,7 +466,7 @@ void StrokeWidth(VGfloat width) {
 //
 
 // RGBA fills a color vectors from a RGBA quad.
-void RGBA(unsigned int r, unsigned int g, unsigned int b, VGfloat a, VGfloat color[4]) {
+void RGBA(VGuint r, VGuint g, VGuint b, VGfloat a, VGfloat color[4]) {
 	if (r > 255) {
 		r = 0;
 	}
@@ -470,8 +476,8 @@ void RGBA(unsigned int r, unsigned int g, unsigned int b, VGfloat a, VGfloat col
 	if (b > 255) {
 		b = 0;
 	}
-	if (a < 0.0 || a > 1.0) {
-		a = 1.0;
+	if (a < 0.0f || a > 1.0f) {
+		a = 1.0f;
 	}
 	color[0] = (VGfloat) r / 255.0f;
 	color[1] = (VGfloat) g / 255.0f;
@@ -480,26 +486,26 @@ void RGBA(unsigned int r, unsigned int g, unsigned int b, VGfloat a, VGfloat col
 }
 
 // RGB returns a solid color from a RGB triple
-void RGB(unsigned int r, unsigned int g, unsigned int b, VGfloat color[4]) {
+void RGB(VGuint r, VGuint g, VGuint b, VGfloat color[4]) {
 	RGBA(r, g, b, 1.0f, color);
 }
 
 // Stroke sets the stroke color, defined as a RGB triple.
-void Stroke(unsigned int r, unsigned int g, unsigned int b, VGfloat a) {
+void Stroke(VGuint r, VGuint g, VGuint b, VGfloat a) {
 	VGfloat color[4];
 	RGBA(r, g, b, a, color);
 	setstroke(color);
 }
 
 // Fill sets the fillcolor, defined as a RGBA quad.
-void Fill(unsigned int r, unsigned int g, unsigned int b, VGfloat a) {
+void Fill(VGuint r, VGuint g, VGuint b, VGfloat a) {
 	VGfloat color[4];
 	RGBA(r, g, b, a, color);
 	setfill(color);
 }
 
 // setstops sets color stops for gradients
-void setstop(VGPaint paint, VGfloat * stops, int n) {
+void setstop(VGPaint paint, VGfloat * stops, VGint n) {
 	VGboolean multmode = VG_FALSE;
 	VGColorRampSpreadMode spreadmode = VG_COLOR_RAMP_SPREAD_REPEAT;
 	vgSetParameteri(paint, VG_PAINT_COLOR_RAMP_SPREAD_MODE, spreadmode);
@@ -509,7 +515,7 @@ void setstop(VGPaint paint, VGfloat * stops, int n) {
 }
 
 // LinearGradient fills with a linear gradient
-void FillLinearGradient(VGfloat x1, VGfloat y1, VGfloat x2, VGfloat y2, VGfloat * stops, int ns) {
+void FillLinearGradient(VGfloat x1, VGfloat y1, VGfloat x2, VGfloat y2, VGfloat * stops, VGint ns) {
 	VGfloat lgcoord[4] = { x1, y1, x2, y2 };
 	vgSetParameteri(fill_paint, VG_PAINT_TYPE, VG_PAINT_TYPE_LINEAR_GRADIENT);
 	vgSetParameterfv(fill_paint, VG_PAINT_LINEAR_GRADIENT, 4, lgcoord);
@@ -517,7 +523,7 @@ void FillLinearGradient(VGfloat x1, VGfloat y1, VGfloat x2, VGfloat y2, VGfloat 
 }
 
 // RadialGradient fills with a linear gradient
-void FillRadialGradient(VGfloat cx, VGfloat cy, VGfloat fx, VGfloat fy, VGfloat radius, VGfloat * stops, int ns) {
+void FillRadialGradient(VGfloat cx, VGfloat cy, VGfloat fx, VGfloat fy, VGfloat radius, VGfloat * stops, VGint ns) {
 	VGfloat radialcoord[5] = { cx, cy, fx, fy, radius };
 	vgSetParameteri(fill_paint, VG_PAINT_TYPE, VG_PAINT_TYPE_RADIAL_GRADIENT);
 	vgSetParameterfv(fill_paint, VG_PAINT_RADIAL_GRADIENT, 5, radialcoord);
@@ -544,17 +550,17 @@ void ClipEnd() {
 //   Cache: If we are passed glyph_string as the string then it's
 //   because TextMid & TextEnd have already called here when
 //   calculating the width and we don't want to parse it again.
-int stringToGlyphs(const char *s, Fontinfo f) {
-	static int glyph_length = 0;	// number of valid glyphs in string
-	static int glyph_string_len = 0;	// size of allocated buffer
+unsigned int stringToGlyphs(const char *s, Fontinfo f) {
+	static unsigned int glyph_length = 0;	// number of valid glyphs in string
+	static unsigned int glyph_string_len = 0;	// size of allocated buffer
 	if (s == (char *)glyph_string) {
 		return glyph_length;
 	}
 
-	mbstate_t state;
-	memset(&state, 0, sizeof state);
-	int str_length = mbsrtowcs(NULL, &s, 0, &state);
-	if (str_length <= 0)
+	mbstate_t mbstate;
+	memset(&mbstate, 0, sizeof mbstate);
+	size_t str_length = mbsrtowcs(NULL, &s, 0, &mbstate);
+	if ((str_length == 0) || (str_length == (size_t)-1))
 		return 0;
 
 	if (str_length > glyph_string_len) {
@@ -568,15 +574,15 @@ int stringToGlyphs(const char *s, Fontinfo f) {
                 glyph_kern = malloc(glyph_string_len * 2 * sizeof *glyph_kern);
 	}
 	wchar_t wstr[str_length];
-	mbsrtowcs(wstr, &s, str_length, &state);
+	mbsrtowcs(wstr, &s, str_length, &mbstate);
 	glyph_length = 0;
-	int i;
+	unsigned int i;
 	if (f->CharacterMap) {				   // libshapes classic fonts
 		for (i = 0; i < str_length; i++) {
 			if (wstr[i] < f->Count) {
-				VGuint glyph = f->CharacterMap[wstr[i]];
+				short glyph = f->CharacterMap[wstr[i]];
 				if (glyph != -1)
-					glyph_string[glyph_length++] = glyph;
+					glyph_string[glyph_length++] = (VGuint)glyph;
 			}
 		}
 	} else {					   // fontsystem fonts
@@ -597,7 +603,7 @@ int stringToGlyphs(const char *s, Fontinfo f) {
 }
 
 // Text renders a string of text at a specified location, size, using the specified font glyphs
-void Text(VGfloat x, VGfloat y, const char *s, Fontinfo f, int pointsize) {
+void Text(VGfloat x, VGfloat y, const char *s, Fontinfo f, VGint pointsize) {
 	VGfloat size = (VGfloat) pointsize;
 	VGfloat matrix[9];
 	vgGetMatrix(matrix);
@@ -613,7 +619,7 @@ void Text(VGfloat x, VGfloat y, const char *s, Fontinfo f, int pointsize) {
 	if (strokew != 0.0f) {
 		vgSetf(VG_STROKE_LINE_WIDTH, strokew / size);
 	}
-	int count = stringToGlyphs(s, f);
+	unsigned int count = stringToGlyphs(s, f);
 	if (count) {
 		VGfloat *kernX, *kernY;
 		if (f->Kerning) {
@@ -622,7 +628,7 @@ void Text(VGfloat x, VGfloat y, const char *s, Fontinfo f, int pointsize) {
 		} else {
 			kernX = kernY = NULL;
 		}
-		vgDrawGlyphs(f->vgfont, count, glyph_string, kernX, kernY, VG_FILL_PATH | VG_STROKE_PATH, VG_FALSE);
+		vgDrawGlyphs(f->vgfont, (VGint)count, glyph_string, kernX, kernY, VG_FILL_PATH | VG_STROKE_PATH, VG_FALSE);
 	}
 	if (strokew != 0.0f) {
 		vgSetf(VG_STROKE_LINE_WIDTH, strokew);
@@ -630,9 +636,9 @@ void Text(VGfloat x, VGfloat y, const char *s, Fontinfo f, int pointsize) {
 }
 
 // TextWidth returns the width of a text string at the specified font and size.
-VGfloat TextWidth(const char *s, Fontinfo f, int pointsize) {
+VGfloat TextWidth(const char *s, Fontinfo f, VGint pointsize) {
 	VGfloat pos[2] = { 0.0f, 0.0f };
-	int count = stringToGlyphs(s, f);
+	unsigned int count = stringToGlyphs(s, f);
 	if (count) {
 		vgSetfv(VG_GLYPH_ORIGIN, 2, pos);
 		VGfloat *kernX, *kernY;
@@ -642,7 +648,7 @@ VGfloat TextWidth(const char *s, Fontinfo f, int pointsize) {
 		} else {
 			kernX = kernY = NULL;
 		}
-		vgDrawGlyphs(f->vgfont, count, glyph_string, kernX, kernY, 0, VG_FALSE);
+		vgDrawGlyphs(f->vgfont, (VGint)count, glyph_string, kernX, kernY, 0, VG_FALSE);
 		vgGetfv(VG_GLYPH_ORIGIN, 2, pos);
 	}
 	return pos[0] * (VGfloat) pointsize;
@@ -653,29 +659,29 @@ VGfloat TextWidth(const char *s, Fontinfo f, int pointsize) {
 // know that it cannot have changed.
 
 // TextMid draws text, centered on (x,y)
-void TextMid(VGfloat x, VGfloat y, const char *s, Fontinfo f, int pointsize) {
+void TextMid(VGfloat x, VGfloat y, const char *s, Fontinfo f, VGint pointsize) {
 	VGfloat tw = TextWidth(s, f, pointsize);
 	Text(x - (tw / 2.0f), y, (char *)glyph_string, f, pointsize);
 }
 
 // TextEnd draws text, with its end aligned to (x,y)
-void TextEnd(VGfloat x, VGfloat y, const char *s, Fontinfo f, int pointsize) {
+void TextEnd(VGfloat x, VGfloat y, const char *s, Fontinfo f, VGint pointsize) {
 	VGfloat tw = TextWidth(s, f, pointsize);
 	Text(x - tw, y, (char *)glyph_string, f, pointsize);
 }
 
 // TextHeight reports a font's height above baseline
-VGfloat TextHeight(Fontinfo f, int pointsize) {
+VGfloat TextHeight(Fontinfo f, VGint pointsize) {
 	return f->AscenderHeight * (VGfloat) pointsize;
 }
 
 // TextDepth reports a font's depth (how far under the baseline it goes)
-VGfloat TextDepth(Fontinfo f, int pointsize) {
+VGfloat TextDepth(Fontinfo f, VGint pointsize) {
 	return -f->DescenderHeight * (VGfloat) pointsize;
 }
 
 // TextLineHeight reports how far between baselines is recommended
-VGfloat TextLineHeight(Fontinfo f, int pointsize) {
+VGfloat TextLineHeight(Fontinfo f, VGint pointsize) {
 	return f->Height * (VGfloat) pointsize;
 }
 
@@ -713,7 +719,7 @@ void Qbezier(VGfloat sx, VGfloat sy, VGfloat cx, VGfloat cy, VGfloat ex, VGfloat
 }
 
 // interleave interleaves arrays of x, y into a single array
-void interleave(VGfloat * x, VGfloat * y, int n, VGfloat * points) {
+void interleave(VGfloat * x, VGfloat * y, VGint n, VGfloat * points) {
 	while (n--) {
 		*points++ = *x++;
 		*points++ = *y++;
@@ -792,20 +798,24 @@ void Arc(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat sa, VGfloat aext) {
 }
 
 // Start begins the picture, clearing a rectangular region with a specified color
-void Start(int width, int height) {
-	VGfloat color[4] = { 1, 1, 1, 1 };
+void Start(VGint width, VGint height) {
+	VGfloat color[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 	vgSetfv(VG_CLEAR_COLOR, 4, color);
 	vgClear(0, 0, width, height);
-	color[0] = color[1] = color[2] = 0;
+	color[0] = color[1] = color[2] = 0.0f;
 	setfill(color);
 	setstroke(color);
 	StrokeWidth(0);
 	vgLoadIdentity();
 }
 
+// *** Hack: Pull in the fontsystem error printing function
+extern void font_error(int, const char*);
 // End checks for errors, and renders to the display
 void End() {
-	assert(vgGetError() == VG_NO_ERROR);
+	VGuint error = vgGetError();
+        if (error != VG_NO_ERROR)
+                font_error(error, "***End()***");
 	eglSwapBuffers(state->display, state->surface);
 	assert(eglGetError() == EGL_SUCCESS);
 }
@@ -828,39 +838,39 @@ void SaveEnd(const char *filename) {
 }
 
 // Backgroud clears the screen to a solid background color
-void Background(unsigned int r, unsigned int g, unsigned int b) {
+void Background(VGuint r, VGuint g, VGuint b) {
 	VGfloat colour[4];
 	RGB(r, g, b, colour);
 	vgSetfv(VG_CLEAR_COLOR, 4, colour);
-	vgClear(0, 0, state->window_width, state->window_height);
+	vgClear(0, 0, (VGint)state->window_width, (VGint)state->window_height);
 }
 
 // BackgroundRGB clears the screen to a background color with alpha
-void BackgroundRGB(unsigned int r, unsigned int g, unsigned int b, VGfloat a) {
+void BackgroundRGB(VGuint r, VGuint g, VGuint b, VGfloat a) {
 	VGfloat colour[4];
 	RGBA(r, g, b, a, colour);
 	vgSetfv(VG_CLEAR_COLOR, 4, colour);
-	vgClear(0, 0, state->window_width, state->window_height);
+	vgClear(0, 0, (VGint)state->window_width, (VGint)state->window_height);
 }
 
 // WindowClear clears the window to previously set background colour
 void WindowClear() {
-	vgClear(0, 0, state->window_width, state->window_height);
+	vgClear(0, 0, (VGint)state->window_width, (VGint)state->window_height);
 }
 
 // AreaClear clears a given rectangle in window coordinates (not affected by
 // transformations)
-void AreaClear(unsigned int x, unsigned int y, unsigned int w, unsigned int h) {
+void AreaClear(VGint x, VGint y, VGint w, VGint h) {
 	vgClear(x, y, w, h);
 }
 
 // WindowOpacity sets the  window opacity
-void WindowOpacity(unsigned int a) {
+void WindowOpacity(uint32_t a) {
 	dispmanChangeWindowOpacity(state, a);
 }
 
 // WindowPosition moves the window to given position
-void WindowPosition(int x, int y) {
+void WindowPosition(int32_t x, int32_t y) {
 	dispmanMoveWindow(state, x, y);
 }
 
@@ -1039,7 +1049,7 @@ void DeletePath(VGPath path) {
 }
 
 // Paint returns a paint of the specified colour
-VGPaint Paint(unsigned int r, unsigned int g, unsigned int b, float a) {
+VGPaint Paint(VGuint r, VGuint g, VGuint b, VGfloat a) {
 	VGfloat colour[4];
 	RGBA(r, g, b, a, colour);
 	VGPaint paint = vgCreatePaint();
@@ -1048,7 +1058,7 @@ VGPaint Paint(unsigned int r, unsigned int g, unsigned int b, float a) {
 	return paint;
 }
 
-VGPaint LinearGradientPaint(VGfloat x1, VGfloat y1, VGfloat x2, VGfloat y2, VGfloat * stops, int ns) {
+VGPaint LinearGradientPaint(VGfloat x1, VGfloat y1, VGfloat x2, VGfloat y2, VGfloat * stops, VGint ns) {
 	VGfloat lgcoord[4] = { x1, y1, x2, y2 };
 	VGPaint paint = vgCreatePaint();
 	vgSetParameteri(paint, VG_PAINT_TYPE, VG_PAINT_TYPE_LINEAR_GRADIENT);
@@ -1058,7 +1068,7 @@ VGPaint LinearGradientPaint(VGfloat x1, VGfloat y1, VGfloat x2, VGfloat y2, VGfl
 }
 
 // RadialGradient fills with a linear gradient
-VGPaint RadialGradientPaint(VGfloat cx, VGfloat cy, VGfloat fx, VGfloat fy, VGfloat radius, VGfloat * stops, int ns) {
+VGPaint RadialGradientPaint(VGfloat cx, VGfloat cy, VGfloat fx, VGfloat fy, VGfloat radius, VGfloat * stops, VGint ns) {
 	VGfloat radialcoord[5] = { cx, cy, fx, fy, radius };
 	VGPaint paint = vgCreatePaint();
 	vgSetParameteri(paint, VG_PAINT_TYPE, VG_PAINT_TYPE_RADIAL_GRADIENT);
@@ -1080,4 +1090,73 @@ void FillPaint(VGPaint paint) {
 // Sets the stroke to be paint
 void StrokePaint(VGPaint paint) {
 	vgSetPaint(paint, VG_STROKE_PATH);
+}
+
+// Take a copy of an area of the window ready for saving
+static char* grabWindow(VGuint x, VGuint y, VGuint *w, VGuint *h) {
+                // If either x,y is off screen then set to 0
+        if (x > state->window_width)
+                x = 0;
+        if (y > state->window_height)
+                y = 0;
+                // Now make sure w,h is valid, reducing if need be
+        VGuint width = *w;
+        VGuint height = *h;
+        if (width == 0)
+                width = state->window_width;
+        if ((x + width) > state->window_width)
+                width = state->window_width - x;
+        if (height == 0)
+                height = state->window_height;
+        if ((y + height) > state->window_height)
+                height = state->window_height - y;
+        *w = width;
+        *h = height;
+        char *ScreenBuffer = malloc(width * height * 4);
+        if (ScreenBuffer)
+                vgReadPixels(ScreenBuffer, (VGint)(width * 4), VG_sABGR_8888, 0, 0, (VGint)width, (VGint)height);
+        return ScreenBuffer;
+}
+
+// Save an area of the window from (x,y) at a size of (w,h) to a .png
+// file. Returns 0 on success, else 1
+int WindowSaveAsPNG(const char *filename, VGuint x, VGuint y, VGuint w, VGuint h, int zlib_level)
+{
+        png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING,
+                                                      NULL, NULL, NULL);
+        if (png_ptr == NULL) {
+                return 1;
+        }
+        png_infop info_ptr = png_create_info_struct(png_ptr);
+        if (info_ptr) {
+                VGuint width = w;
+                VGuint height = h;
+                char *image = grabWindow(x, y, &width, &height);
+                FILE *file = fopen(filename, "wb");
+                if (file) {
+                        if (!setjmp(png_jmpbuf(png_ptr))) {
+                                png_init_io(png_ptr, file);
+                                png_set_IHDR(png_ptr, info_ptr, width, height,
+                                             8, PNG_COLOR_TYPE_RGB,
+                                             PNG_INTERLACE_NONE,
+                                             PNG_COMPRESSION_TYPE_BASE,
+                                             PNG_FILTER_TYPE_BASE);
+                                png_set_compression_level(png_ptr, zlib_level);
+                                png_write_info(png_ptr, info_ptr);
+                                png_set_packing(png_ptr);
+                                png_set_filler(png_ptr, 0, PNG_FILLER_AFTER);
+                                png_bytep row_pointer;
+                                row_pointer = (png_bytep)image + width*4*height;
+                                int row;
+                                for (row = height; row; row--) {
+                                        row_pointer -= width*4;
+                                        png_write_rows(png_ptr, &row_pointer, 1);
+                                }
+                        }
+                        png_write_end(png_ptr, info_ptr);
+                        fclose(file);
+                }
+        }
+        png_destroy_write_struct(&png_ptr, &info_ptr);
+        return 0;
 }

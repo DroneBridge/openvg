@@ -28,6 +28,8 @@ int main() {
 	TextMid(width / 2, (height * 0.1), hello3 , SerifTypeface, width / 15);
 	End();						   // End the picture
 
+        WindowSaveAsPNG("hello.png", 0, 0, 0, 0, 9);
+        
 	fgets(s, 2, stdin);				   // look at the pic, end with [RETURN]
 	finish();					   // Graphics cleanup
 	exit(0);

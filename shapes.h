@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <VG/openvg.h>
 #include <VG/vgu.h>
 #include "fontinfo.h"
@@ -8,10 +9,10 @@ extern "C" {
 	extern void Rotate(VGfloat);
 	extern void Shear(VGfloat, VGfloat);
 	extern void Scale(VGfloat, VGfloat);
-	extern void Text(VGfloat, VGfloat, const char *, Fontinfo, int);
-	extern void TextMid(VGfloat, VGfloat, const char *, Fontinfo, int);
-	extern void TextEnd(VGfloat, VGfloat, const char *, Fontinfo, int);
-	extern VGfloat TextWidth(const char *, Fontinfo, int);
+	extern void Text(VGfloat, VGfloat, const char *, Fontinfo, VGint);
+	extern void TextMid(VGfloat, VGfloat, const char *, Fontinfo, VGint);
+	extern void TextEnd(VGfloat, VGfloat, const char *, Fontinfo, VGint);
+	extern VGfloat TextWidth(const char *, Fontinfo, VGint);
 	extern void Cbezier(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat);
 	extern void Qbezier(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat);
 	extern void Polygon(VGfloat *, VGfloat *, VGint);
@@ -22,49 +23,50 @@ extern "C" {
 	extern void Ellipse(VGfloat, VGfloat, VGfloat, VGfloat);
 	extern void Circle(VGfloat, VGfloat, VGfloat);
 	extern void Arc(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat);
-	extern void Image(VGfloat, VGfloat, int, int, const char *);
-	extern void Start(int, int);
+	extern void Image(VGfloat, VGfloat, VGint, VGint, const char *);
+	extern void Start(VGint, VGint);
 	extern void End();
 	extern void SaveEnd(const char *);
-	extern void Background(unsigned int, unsigned int, unsigned int);
-	extern void BackgroundRGB(unsigned int, unsigned int, unsigned int, VGfloat);
-	extern void init(int *, int *);
+	extern void Background(VGuint, VGuint, VGuint);
+	extern void BackgroundRGB(VGuint, VGuint, VGuint, VGfloat);
+	extern void init(uint32_t *, uint32_t *);
 	extern void finish();
 	extern void setfill(VGfloat[4]);
 	extern void setstroke(VGfloat[4]);
 	extern void StrokeWidth(VGfloat);
-	extern void Stroke(unsigned int, unsigned int, unsigned int, VGfloat);
-	extern void Fill(unsigned int, unsigned int, unsigned int, VGfloat);
-	extern void RGBA(unsigned int, unsigned int, unsigned int, VGfloat, VGfloat[4]);
-	extern void RGB(unsigned int, unsigned int, unsigned int, VGfloat[4]);
-	extern void FillLinearGradient(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat *, int);
-	extern void FillRadialGradient(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat *, int);
+	extern void Stroke(VGuint, VGuint, VGuint, VGfloat);
+	extern void Fill(VGuint, VGuint, VGuint, VGfloat);
+	extern void RGBA(VGuint, VGuint, VGuint, VGfloat, VGfloat[4]);
+	extern void RGB(VGuint, VGuint, VGuint, VGfloat[4]);
+	extern void FillLinearGradient(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat *, VGint);
+	extern void FillRadialGradient(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat *, VGint);
 	extern void ClipRect(VGint x, VGint y, VGint w, VGint h);
 	extern void ClipEnd();
 	extern Fontinfo loadfont(const int *, const int *, const unsigned char *, const int *, const int *, const int *,
 				 const short *, int, int, int);
 	extern void unloadfont(Fontinfo);
-	extern void makeimage(VGfloat, VGfloat, int, int, VGubyte *);
+	extern void makeimage(VGfloat, VGfloat, VGint, VGint, VGubyte *);
 	extern void saveterm();
 	extern void restoreterm();
 	extern void rawterm();
 	extern VGImage createImageFromJpeg(const char *);
 
 	// Added by Paeryn
-	extern void initWindowSize(int x, int y, unsigned int w, unsigned int h);
+	extern void initWindowSize(int32_t x, int32_t y, uint32_t w, uint32_t h);
 	extern Fontinfo LoadTTFFile(const char *fname);
 	extern Fontinfo LoadTTF(const char *font_style);
 	extern void UnloadTTF(Fontinfo f);
 	extern void FontKerning(Fontinfo f, int kerning);
-	extern VGfloat TextHeight(Fontinfo f, int pointsize);
-	extern VGfloat TextDepth(Fontinfo f, int pointsize);
-	extern VGfloat TextLineHeight(Fontinfo f, int pointsize);
+	extern VGfloat TextHeight(Fontinfo f, VGint pointsize);
+	extern VGfloat TextDepth(Fontinfo f, VGint pointsize);
+	extern VGfloat TextLineHeight(Fontinfo f, VGint pointsize);
 
-	extern void AreaClear(unsigned int x, unsigned int y, unsigned int w, unsigned int h);
+	extern void AreaClear(VGint x, VGint y, VGint w, VGint h);
 	extern void WindowClear();
-	extern void WindowOpacity(unsigned int alpha);
-	extern void WindowPosition(int x, int y);
-
+	extern void WindowOpacity(uint32_t alpha);
+	extern void WindowPosition(int32_t x, int32_t y);
+        extern int WindowSaveAsPNG(const char *filename, VGuint x, VGuint y, VGuint w, VGuint h, int zlib_level);
+        
 	// Outline shapes
 	extern void CbezierOutline(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat);
 	extern void QbezierOutline(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat);

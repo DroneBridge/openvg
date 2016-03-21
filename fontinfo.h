@@ -9,7 +9,7 @@ extern "C" {
 	typedef struct Fontinfo_T {
 		const short *CharacterMap;
 		const int *GlyphAdvances;
-		int Count;
+		unsigned int Count;
 		VGfloat DescenderHeight;	// How far below baseline (-ve)
 		VGfloat AscenderHeight;	// How far above baseline
 		VGfloat Height;	// How far between baselines

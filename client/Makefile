@@ -3,11 +3,17 @@ ifdef RPISDK
 endif
 
 CC = $(CROSS_COMPILE)gcc
-#CCOPTS = -O0 -g -Wall
-CCOPTS = -O2 -Wall
+CCOPTS =  -Wall -Wextra -Wdouble-promotion -Wshadow
+
+ifdef DEBUG
+CCOPTS += -O0 -g
+else
+CCOPTS = -O2
+endif
 
 INCLUDEFLAGS=-I$(RPISDK)/opt/vc/include -I$(RPISDK)/opt/vc/include/interface/vmcs_host/linux -I$(RPISDK)/opt/vc/include/interface/vcos/pthreads -I..
-LIBFLAGS= -Wl,-rpath=$(RPISDK)/opt/vc/lib -L$(RPISDK)/opt/vc/lib -lEGL -lGLESv2 -lbcm_host -pthread -ljpeg -lfreetype -lfontconfig
+LIBFLAGS= -Wl,-rpath=$(RPISDK)/opt/vc/lib -L$(RPISDK)/opt/vc/lib -lEGL -lGLESv2 -lbcm_host -pthread -ljpeg -lpng -lfreetype -lfontconfig -lz
+
 all: shapedemo hellovg mouse-hellovg particles clip
 
 shapedemo:	shapedemo.c ../libshapes.o ../oglinit.o ../fontsystem.o

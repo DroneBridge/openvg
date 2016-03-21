@@ -21,10 +21,10 @@ typedef struct scoord_T {
 } scoord_T;
 
 typedef struct paths_T {
-	int cpos;
-	int spos;
-	int max_coords;
-	int max_segments;
+	unsigned int cpos;
+	unsigned int spos;
+	unsigned int max_coords;
+	unsigned int max_segments;
 	scoord_T *coords;
 	VGubyte *segments;
 	int error;
@@ -54,9 +54,9 @@ static void free_paths(paths_T * paths) {
 		free(paths->segments);
 }
 
-static int add_path_coords(paths_T * path, int num) {
-	int size = path->max_coords;
-	int cpos = path->cpos;
+static int add_path_coords(paths_T * path, unsigned int num) {
+	unsigned int size = path->max_coords;
+	unsigned int cpos = path->cpos;
 	path->cpos += num;
 	if (path->cpos >= size) {
 		scoord_T *mem = realloc(path->coords, (size + 256) * sizeof *path->coords);
@@ -64,15 +64,15 @@ static int add_path_coords(paths_T * path, int num) {
 			path->coords = mem;
 			path->max_coords = size + 256;
 		} else {
-			cpos = -1;
+			return -1;
 		}
 	}
-	return cpos;
+	return (int)cpos;
 }
 
-static int add_path_segments(paths_T * path, int num) {
-	int size = path->max_segments;
-	int spos = path->spos;
+static int add_path_segments(paths_T * path, unsigned int num) {
+	unsigned int size = path->max_segments;
+	unsigned int spos = path->spos;
 	path->spos += num;
 	if (path->spos >= size) {
 		VGubyte *mem = realloc(path->segments, (size + 64) * sizeof *path->segments);
@@ -80,10 +80,10 @@ static int add_path_segments(paths_T * path, int num) {
 			path->segments = mem;
 			path->max_segments = size + 64;
 		} else {
-			spos = -1;
+			return -1;
 		}
 	}
-	return spos;
+	return (int)spos;
 }
 
 static int ft_move_to(const FT_Vector * to, paths_T * outline) {
@@ -95,8 +95,8 @@ static int ft_move_to(const FT_Vector * to, paths_T * outline) {
 	int cpos = add_path_coords(outline, 1);
 	if (cpos < 0)
 		return -1;
-	outline->coords[cpos].x = to->x;
-	outline->coords[cpos].y = to->y;
+	outline->coords[cpos].x = (short)to->x;
+	outline->coords[cpos].y = (short)to->y;
 	return 0;
 }
 
@@ -109,8 +109,8 @@ static int ft_line_to(const FT_Vector * to, paths_T * outline) {
 	int cpos = add_path_coords(outline, 1);
 	if (cpos < 0)
 		return -1;
-	outline->coords[cpos].x = to->x;
-	outline->coords[cpos].y = to->y;
+	outline->coords[cpos].x = (short)to->x;
+	outline->coords[cpos].y = (short)to->y;
 	return 0;
 }
 
@@ -123,10 +123,10 @@ static int ft_conic_to(const FT_Vector * control, const FT_Vector * to, paths_T 
 	int cpos = add_path_coords(outline, 2);
 	if (cpos < 0)
 		return -1;
-	outline->coords[cpos].x = control->x;
-	outline->coords[cpos].y = control->y;
-	outline->coords[cpos + 1].x = to->x;
-	outline->coords[cpos + 1].y = to->y;
+	outline->coords[cpos].x = (short)control->x;
+	outline->coords[cpos].y = (short)control->y;
+	outline->coords[cpos + 1].x = (short)to->x;
+	outline->coords[cpos + 1].y = (short)to->y;
 	return 0;
 }
 
@@ -139,12 +139,12 @@ static int ft_cubic_to(const FT_Vector * ctrl1, const FT_Vector * ctrl2, const F
 	int cpos = add_path_coords(outline, 3);
 	if (cpos < 0)
 		return -1;
-	outline->coords[cpos].x = ctrl1->x;
-	outline->coords[cpos].y = ctrl1->y;
-	outline->coords[cpos + 1].x = ctrl2->x;
-	outline->coords[cpos + 1].y = ctrl2->y;
-	outline->coords[cpos + 2].x = to->x;
-	outline->coords[cpos + 2].y = to->y;
+	outline->coords[cpos].x = (short)ctrl1->x;
+	outline->coords[cpos].y = (short)ctrl1->y;
+	outline->coords[cpos + 1].x = (short)ctrl2->x;
+	outline->coords[cpos + 1].y = (short)ctrl2->y;
+	outline->coords[cpos + 2].x = (short)to->x;
+	outline->coords[cpos + 2].y = (short)to->y;
 	return 0;
 }
 
@@ -287,7 +287,7 @@ Fontinfo LoadTTFFile(const char *filename) {
 	}
 
 	FT_Long numGlyphs = face->num_glyphs;
-	font->Count = numGlyphs;
+	font->Count = (unsigned int)numGlyphs;
 	font->CharacterMap = NULL;			   // Indicate that we use FT's charmap
 	font->vgfont = vgCreateFont(numGlyphs);
 	if (font->vgfont == VG_INVALID_HANDLE) {
@@ -300,8 +300,8 @@ Fontinfo LoadTTFFile(const char *filename) {
 
 	VGfloat origin[2] = { 0.0f, 0.0f };
 	VGfloat escapement[2] = { 0.0f, 0.0f };
-	int cc;
-	for (cc = 0; cc < numGlyphs; cc++) {
+	VGuint cc;
+	for (cc = 0; cc < (VGuint)numGlyphs; cc++) {
 		if (!FT_Load_Glyph(face, cc, FT_LOAD_NO_BITMAP | FT_LOAD_NO_HINTING | FT_LOAD_IGNORE_TRANSFORM)) {
 			escapement[0] = (float)face->glyph->linearHoriAdvance / (64.0f * 65536.0f);
 			paths.cpos = paths.spos = 0;
@@ -314,12 +314,12 @@ Fontinfo LoadTTFFile(const char *filename) {
 			if (paths.spos) {
 				path = vgCreatePath(VG_PATH_FORMAT_STANDARD,
 						    VG_PATH_DATATYPE_S_16,
-						    1.0f / 4096.0f, 0.0f, paths.spos, paths.cpos, VG_PATH_CAPABILITY_APPEND_TO);
+						    1.0f / 4096.0f, 0.0f, (VGint)paths.spos, (VGint)paths.cpos, VG_PATH_CAPABILITY_APPEND_TO);
                                 if (path == VG_INVALID_HANDLE) {
                                         error = vgGetError();
                                         break;
                                 }
-				vgAppendPathData(path, paths.spos, paths.segments, paths.coords);
+				vgAppendPathData(path, (VGint)paths.spos, paths.segments, paths.coords);
 			}
 			vgSetGlyphToPath(font->vgfont, cc, path, VG_FALSE, origin, escapement);
 			if (path != VG_INVALID_HANDLE)
