@@ -11,6 +11,7 @@
 
 #include "VG/openvg.h"
 #include "fontinfo.h"
+#include "fontsystem.h"
 #include "shapes.h"
 
 // Freetype library, set globally so I only open it once
@@ -156,88 +157,70 @@ FT_Outline_Funcs funcs = {
 	0, 0
 };
 
-typedef enum 
-{
-        FONT_NO_ERROR       = 0,
-        FONT_NO_FREETYPE    = 1,
-        FONT_NO_FILE        = 2,
-        FONT_NOT_SCALABLE   = 3,
-        FONT_OUT_OF_MEMORY  = 4,
-        FONT_NO_VGFONT      = 5,
-        FONT_BAD_HANDLE_ERROR = VG_BAD_HANDLE_ERROR,
-        FONT_ILLEGAL_ARGUMENT_ERROR,
-        FONT_OUT_OF_MEMORY_ERROR,
-        FONT_PATH_CAPABILITY_ERROR,
-        FONT_UNSUPPORTED_IMAGE_FORMAT_ERROR,
-        FONT_UNSUPPORTED_PATH_FORMAT_ERROR,
-        FONT_IMAGE_IN_USE_ERROR,
-        FONT_NO_CONTEXT_ERROR
-} FontErrorCode;
-
 static const char *font_err_msg[] = {
-        "",
-        "failed to initialise freetype2",
-        "freetype failed to load file",
-        "font not scalable",
-        "out of memory",
-        "unable to allocate vgfont"
+	"",
+	"failed to initialise freetype2",
+	"freetype failed to load file",
+	"font not scalable",
+	"out of memory",
+	"unable to allocate vgfont"
 };
-static const char *vg_err_msg[] = {
-        "VG_BAD_HANDLE_ERROR",
-        "VG_ILLEGAL_ARGUMENT_ERROR",
-        "VG_OUT_OF_MEMORY_ERROR",
-        "VG_PATH_CAPABILITY_ERROR",
-        "VG_UNSUPPORTED_IMAGE_FORMAT_ERROR",
-        "VG_UNSUPPORTED_PATH_FORMAT_ERROR",
-        "VG_IMAGE_IN_USE_ERROR",
-        "VG_NO_CONTEXT_ERROR"
-};
-        
-void font_error(FontErrorCode error, const char *filename) {
-        switch (error) {
-            case FONT_NO_FREETYPE:
-            case FONT_NO_FILE:
-            case FONT_NOT_SCALABLE:
-            case FONT_OUT_OF_MEMORY:
-                    fprintf(stderr, "Error %s in LoadTTFFile(\"%s\")\n", font_err_msg[error], filename);
-                    break;
-            case VG_BAD_HANDLE_ERROR:
-            case VG_ILLEGAL_ARGUMENT_ERROR:
-            case VG_OUT_OF_MEMORY_ERROR:
-            case VG_PATH_CAPABILITY_ERROR:
-            case VG_UNSUPPORTED_IMAGE_FORMAT_ERROR:
-            case VG_UNSUPPORTED_PATH_FORMAT_ERROR:
-            case VG_IMAGE_IN_USE_ERROR:
-            case VG_NO_CONTEXT_ERROR:
-                    fprintf(stderr, "OpenVG error %s in LoadTTFFile(\"%s\")\n", vg_err_msg[(int)error - (int)VG_BAD_HANDLE_ERROR], filename);
-                    break;
-            default:
-                    break;
-        }
-}
 
+static const char *vg_err_msg[] = {
+	"VG_BAD_HANDLE_ERROR",
+	"VG_ILLEGAL_ARGUMENT_ERROR",
+	"VG_OUT_OF_MEMORY_ERROR",
+	"VG_PATH_CAPABILITY_ERROR",
+	"VG_UNSUPPORTED_IMAGE_FORMAT_ERROR",
+	"VG_UNSUPPORTED_PATH_FORMAT_ERROR",
+	"VG_IMAGE_IN_USE_ERROR",
+	"VG_NO_CONTEXT_ERROR"
+};
+
+void font_error(FontErrorCode error, const char *filename) {
+	switch (error) {
+	case FONT_NO_FREETYPE:
+	case FONT_NO_FILE:
+	case FONT_NOT_SCALABLE:
+	case FONT_OUT_OF_MEMORY:
+		fprintf(stderr, "Error %s in LoadTTFFile(\"%s\")\n", font_err_msg[error], filename);
+		break;
+	case VG_BAD_HANDLE_ERROR:
+	case VG_ILLEGAL_ARGUMENT_ERROR:
+	case VG_OUT_OF_MEMORY_ERROR:
+	case VG_PATH_CAPABILITY_ERROR:
+	case VG_UNSUPPORTED_IMAGE_FORMAT_ERROR:
+	case VG_UNSUPPORTED_PATH_FORMAT_ERROR:
+	case VG_IMAGE_IN_USE_ERROR:
+	case VG_NO_CONTEXT_ERROR:
+		fprintf(stderr, "OpenVG error %s in LoadTTFFile(\"%s\")\n", vg_err_msg[(int)error - (int)VG_BAD_HANDLE_ERROR],
+			filename);
+		break;
+	default:
+		break;
+	}
+}
 
 // LoadTTFFile() loads a TTF from named file
 Fontinfo LoadTTFFile(const char *filename) {
-	int error = 0;
+	FontErrorCode error = FONT_NO_ERROR;
 	if (ft_library == NULL) {
 		if (FT_Init_FreeType(&ft_library)) {
-                        font_error(FONT_NO_FREETYPE, filename);
-                        return NULL;
-                }
-        }
+			font_error(FONT_NO_FREETYPE, filename);
+			return NULL;
+		}
+	}
 	FT_Face face;
 	int faceIndex = 0;
 	if (FT_New_Face(ft_library, filename, faceIndex, &face)) {
-                font_error(FONT_NO_FILE, filename);
-                return NULL;
-        }
-
-        // TODO: Fail loading bitmap fonts for now.
+		font_error(FONT_NO_FILE, filename);
+		return NULL;
+	}
+	// TODO: Fail loading bitmap fonts for now.
 	if (!FT_IS_SCALABLE(face)) {
 		FT_Done_Face(face);
-                font_error(FONT_NOT_SCALABLE, filename);
-                return NULL;
+		font_error(FONT_NOT_SCALABLE, filename);
+		return NULL;
 	}
 	// Check to see if we're a PS font, if so try to load
 	// a metric file for kerning data.
@@ -267,8 +250,8 @@ Fontinfo LoadTTFFile(const char *filename) {
 	Fontinfo font = calloc(1, sizeof *font);
 	if (font == NULL) {
 		FT_Done_Face(face);
-                font_error(FONT_OUT_OF_MEMORY, filename);
-                return NULL;
+		font_error(FONT_OUT_OF_MEMORY, filename);
+		return NULL;
 	}
 	font->face = (void *)face;
 	font->Name = face->family_name;
@@ -282,7 +265,7 @@ Fontinfo LoadTTFFile(const char *filename) {
 	if (!alloc_paths(&paths)) {
 		FT_Done_Face(face);
 		free(font);
-                font_error(FONT_OUT_OF_MEMORY, filename);
+		font_error(FONT_OUT_OF_MEMORY, filename);
 		return NULL;
 	}
 
@@ -294,14 +277,14 @@ Fontinfo LoadTTFFile(const char *filename) {
 		free_paths(&paths);
 		FT_Done_Face(face);
 		free(font);
-                font_error(FONT_NO_VGFONT, filename);
-                return NULL;
+		font_error(FONT_NO_VGFONT, filename);
+		return NULL;
 	}
 
 	VGfloat origin[2] = { 0.0f, 0.0f };
 	VGfloat escapement[2] = { 0.0f, 0.0f };
 	VGuint cc;
-	for (cc = 0; cc < (VGuint)numGlyphs; cc++) {
+	for (cc = 0; cc < (VGuint) numGlyphs; cc++) {
 		if (!FT_Load_Glyph(face, cc, FT_LOAD_NO_BITMAP | FT_LOAD_NO_HINTING | FT_LOAD_IGNORE_TRANSFORM)) {
 			escapement[0] = (float)face->glyph->linearHoriAdvance / (64.0f * 65536.0f);
 			paths.cpos = paths.spos = 0;
@@ -314,12 +297,13 @@ Fontinfo LoadTTFFile(const char *filename) {
 			if (paths.spos) {
 				path = vgCreatePath(VG_PATH_FORMAT_STANDARD,
 						    VG_PATH_DATATYPE_S_16,
-						    1.0f / 4096.0f, 0.0f, (VGint)paths.spos, (VGint)paths.cpos, VG_PATH_CAPABILITY_APPEND_TO);
-                                if (path == VG_INVALID_HANDLE) {
-                                        error = vgGetError();
-                                        break;
-                                }
-				vgAppendPathData(path, (VGint)paths.spos, paths.segments, paths.coords);
+						    1.0f / 4096.0f, 0.0f, (VGint) paths.spos, (VGint) paths.cpos,
+						    VG_PATH_CAPABILITY_APPEND_TO);
+				if (path == VG_INVALID_HANDLE) {
+					error = (FontErrorCode) vgGetError();
+					break;
+				}
+				vgAppendPathData(path, (VGint) paths.spos, paths.segments, paths.coords);
 			}
 			vgSetGlyphToPath(font->vgfont, cc, path, VG_FALSE, origin, escapement);
 			if (path != VG_INVALID_HANDLE)
@@ -327,15 +311,15 @@ Fontinfo LoadTTFFile(const char *filename) {
 		}
 	}
 	free_paths(&paths);
-        if (error)
-                font_error(error, filename);
+	if (error)
+		font_error(error, filename);
 
-        VGErrorCode vgerror = vgGetError();
-        if (vgerror != VG_NO_ERROR)
-                font_error((FontErrorCode)vgerror, filename);
+	VGErrorCode vgerror = vgGetError();
+	if (vgerror != VG_NO_ERROR)
+		font_error((FontErrorCode) vgerror, filename);
 
 	if (error || vgerror) {
-                UnloadTTF(font);
+		UnloadTTF(font);
 		font = NULL;
 	}
 	return font;

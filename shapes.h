@@ -1,7 +1,12 @@
+#ifndef OPENVG_SHAPES_H
+#define OPENVG_SHAPES_H
+
 #include <stdint.h>
+#include <stdbool.h>
 #include <VG/openvg.h>
 #include <VG/vgu.h>
 #include "fontinfo.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -65,8 +70,12 @@ extern "C" {
 	extern void WindowClear();
 	extern void WindowOpacity(uint32_t alpha);
 	extern void WindowPosition(int32_t x, int32_t y);
-        extern int WindowSaveAsPNG(const char *filename, VGuint x, VGuint y, VGuint w, VGuint h, int zlib_level);
-        
+	extern bool WindowSaveAsPNG(const char *filename, VGint x, VGint y, VGint w, VGint h, int zlib_level);
+	extern VGImage LoadImageFromPNG(const char *filename, VGint * w, VGint * h);
+	extern void DrawImageAt(VGfloat x, VGfloat y, VGImage image);
+	extern void DrawImageAtFit(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGImage image);
+	extern void CopyMatrixPathToImage();
+
 	// Outline shapes
 	extern void CbezierOutline(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat);
 	extern void QbezierOutline(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat);
@@ -97,6 +106,7 @@ extern "C" {
 	extern void DeletePaint(VGPaint paint);
 	extern void FillPaint(VGPaint paint);
 	extern void StrokePaint(VGPaint paint);
+
 #if defined(__cplusplus)
 }
 #endif
@@ -248,3 +258,4 @@ extern "C" {
 #define color_whitesmoke		245,245,245
 #define color_yellow		255,255,0
 #define color_yellowgreen		154,205,50
+#endif				// OPENVG_SHAPES_H

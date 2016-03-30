@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <wchar.h>
 #include <termios.h>
 #include <assert.h>
@@ -23,15 +24,10 @@
 #include "eglstate.h"					   // data structures for graphics state
 #include "fontinfo.h"					   // font data structure
 #include "shapes.h"					   // Needed to check prototypes
-
-// Bring these functions in from fontsystem.c
-// Don't want to expose the functions to external programs.
-extern void font_CloseFontSystem();
-extern unsigned int font_CharToGlyph(void *face, unsigned long code);
-extern void font_KernData(void *face, unsigned long curr, unsigned long prev, VGfloat * kernX, VGfloat * kernY);
+#include "fontsystem.h"
 
 static STATE_T _state, *state = &_state;	// global graphics state
-static int32_t init_x = 0;		// Initial window position and size
+static int32_t init_x = 0;	// Initial window position and size
 static int32_t init_y = 0;
 static uint32_t init_w = 0;
 static uint32_t init_h = 0;
@@ -124,7 +120,7 @@ Fontinfo loadfont(const int *Points,
 					    1.0f / 65536.0f, 0.0f, ic, p_count, VG_PATH_CAPABILITY_APPEND_TO);
 			vgAppendPathData(path, ic, instructions, p);
 		}
-		vgSetGlyphToPath(font, (VGuint)i, path, VG_FALSE, origin, escapement);
+		vgSetGlyphToPath(font, (VGuint) i, path, VG_FALSE, origin, escapement);
 		if (path != VG_INVALID_HANDLE)
 			vgDestroyPath(path);
 	}
@@ -240,8 +236,8 @@ VGImage createImageFromJpeg(const char *filename) {
 	}
 
 	// Create VG image
-	img = vgCreateImage(rgbaFormat, (VGint)width, (VGint)height, VG_IMAGE_QUALITY_BETTER);
-	vgImageSubData(img, data, (VGint)dstride, rgbaFormat, 0, 0, (VGint)width, (VGint)height);
+	img = vgCreateImage(rgbaFormat, (VGint) width, (VGint) height, VG_IMAGE_QUALITY_BETTER);
+	vgImageSubData(img, data, (VGint) dstride, rgbaFormat, 0, 0, (VGint) width, (VGint) height);
 
 	// Cleanup
 	jpeg_destroy_decompress(&jdc);
@@ -270,12 +266,12 @@ void Image(VGfloat x, VGfloat y, VGint w, VGint h, const char *filename) {
 
 // dumpscreen writes the raster
 void dumpscreen(VGuint w, VGuint h, FILE * fp) {
-        if (w > state->window_width)
-                w = state->window_width;
-        if (h > state->window_height)
-                h = state->window_height;
+	if (w > state->window_width)
+		w = state->window_width;
+	if (h > state->window_height)
+		h = state->window_height;
 	void *ScreenBuffer = malloc(w * h * 4);
-        vgReadPixels(ScreenBuffer, (VGint)(w * 4), VG_sABGR_8888, 0, 0, (VGint)w, (VGint)h);
+	vgReadPixels(ScreenBuffer, (VGint) (w * 4), VG_sABGR_8888, 0, 0, (VGint) w, (VGint) h);
 	fwrite(ScreenBuffer, 1, w * h * 4, fp);
 	free(ScreenBuffer);
 }
@@ -293,7 +289,7 @@ void initWindowSize(int32_t x, int32_t y, uint32_t w, uint32_t h) {
 }
 
 // init sets the system to its initial state
-void init(uint32_t *w, uint32_t *h) {
+void init(uint32_t * w, uint32_t * h) {
 	bcm_host_init();
 	memset(state, 0, sizeof(*state));
 	state->window_x = init_x;
@@ -380,14 +376,15 @@ void init(uint32_t *w, uint32_t *h) {
 			 VG_PATH_CAPABILITY_APPEND_TO | VG_PATH_CAPABILITY_MODIFY);
 	vguEllipse(ellipse_path, 0, 0, 1, 1);
 
-        VGErrorCode vgerror = vgGetError();
-        if (vgerror != VG_NO_ERROR) {
-                fprintf(stderr, "OpenVG gave error %x whilst initilising libshapes.", vgerror);
-        }
+	VGErrorCode vgerror = vgGetError();
+	if (vgerror != VG_NO_ERROR) {
+		fprintf(stderr, "OpenVG gave error %x whilst initilising libshapes.", vgerror);
+	}
 }
 
 // finish cleans up
 void finish() {
+	eglSwapBuffers(state->display, state->surface);
 	vgDestroyPath(ellipse_path);
 	vgDestroyPath(roundrect_path);
 	vgDestroyPath(line_path);
@@ -404,7 +401,6 @@ void finish() {
 	unloadfont(MonoTypeface);
 	MonoTypeface = NULL;
 	font_CloseFontSystem();
-	eglSwapBuffers(state->display, state->surface);
 	eglMakeCurrent(state->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 	eglDestroySurface(state->display, state->surface);
 	eglDestroyContext(state->display, state->context);
@@ -560,7 +556,7 @@ unsigned int stringToGlyphs(const char *s, Fontinfo f) {
 	mbstate_t mbstate;
 	memset(&mbstate, 0, sizeof mbstate);
 	size_t str_length = mbsrtowcs(NULL, &s, 0, &mbstate);
-	if ((str_length == 0) || (str_length == (size_t)-1))
+	if ((str_length == 0) || (str_length == (size_t) - 1))
 		return 0;
 
 	if (str_length > glyph_string_len) {
@@ -571,7 +567,7 @@ unsigned int stringToGlyphs(const char *s, Fontinfo f) {
 
 		glyph_string_len = str_length;
 		glyph_string = malloc(glyph_string_len * sizeof *glyph_string);
-                glyph_kern = malloc(glyph_string_len * 2 * sizeof *glyph_kern);
+		glyph_kern = malloc(glyph_string_len * 2 * sizeof *glyph_kern);
 	}
 	wchar_t wstr[str_length];
 	mbsrtowcs(wstr, &s, str_length, &mbstate);
@@ -582,7 +578,7 @@ unsigned int stringToGlyphs(const char *s, Fontinfo f) {
 			if (wstr[i] < f->Count) {
 				short glyph = f->CharacterMap[wstr[i]];
 				if (glyph != -1)
-					glyph_string[glyph_length++] = (VGuint)glyph;
+					glyph_string[glyph_length++] = (VGuint) glyph;
 			}
 		}
 	} else {					   // fontsystem fonts
@@ -628,7 +624,7 @@ void Text(VGfloat x, VGfloat y, const char *s, Fontinfo f, VGint pointsize) {
 		} else {
 			kernX = kernY = NULL;
 		}
-		vgDrawGlyphs(f->vgfont, (VGint)count, glyph_string, kernX, kernY, VG_FILL_PATH | VG_STROKE_PATH, VG_FALSE);
+		vgDrawGlyphs(f->vgfont, (VGint) count, glyph_string, kernX, kernY, VG_FILL_PATH | VG_STROKE_PATH, VG_FALSE);
 	}
 	if (strokew != 0.0f) {
 		vgSetf(VG_STROKE_LINE_WIDTH, strokew);
@@ -648,7 +644,7 @@ VGfloat TextWidth(const char *s, Fontinfo f, VGint pointsize) {
 		} else {
 			kernX = kernY = NULL;
 		}
-		vgDrawGlyphs(f->vgfont, (VGint)count, glyph_string, kernX, kernY, 0, VG_FALSE);
+		vgDrawGlyphs(f->vgfont, (VGint) count, glyph_string, kernX, kernY, 0, VG_FALSE);
 		vgGetfv(VG_GLYPH_ORIGIN, 2, pos);
 	}
 	return pos[0] * (VGfloat) pointsize;
@@ -809,13 +805,11 @@ void Start(VGint width, VGint height) {
 	vgLoadIdentity();
 }
 
-// *** Hack: Pull in the fontsystem error printing function
-extern void font_error(int, const char*);
 // End checks for errors, and renders to the display
 void End() {
 	VGuint error = vgGetError();
-        if (error != VG_NO_ERROR)
-                font_error(error, "***End()***");
+	if (error != VG_NO_ERROR)
+		font_error(error, "***End()***");
 	eglSwapBuffers(state->display, state->surface);
 	assert(eglGetError() == EGL_SUCCESS);
 }
@@ -842,7 +836,7 @@ void Background(VGuint r, VGuint g, VGuint b) {
 	VGfloat colour[4];
 	RGB(r, g, b, colour);
 	vgSetfv(VG_CLEAR_COLOR, 4, colour);
-	vgClear(0, 0, (VGint)state->window_width, (VGint)state->window_height);
+	vgClear(0, 0, (VGint) state->window_width, (VGint) state->window_height);
 }
 
 // BackgroundRGB clears the screen to a background color with alpha
@@ -850,12 +844,12 @@ void BackgroundRGB(VGuint r, VGuint g, VGuint b, VGfloat a) {
 	VGfloat colour[4];
 	RGBA(r, g, b, a, colour);
 	vgSetfv(VG_CLEAR_COLOR, 4, colour);
-	vgClear(0, 0, (VGint)state->window_width, (VGint)state->window_height);
+	vgClear(0, 0, (VGint) state->window_width, (VGint) state->window_height);
 }
 
 // WindowClear clears the window to previously set background colour
 void WindowClear() {
-	vgClear(0, 0, (VGint)state->window_width, (VGint)state->window_height);
+	vgClear(0, 0, (VGint) state->window_width, (VGint) state->window_height);
 }
 
 // AreaClear clears a given rectangle in window coordinates (not affected by
@@ -1093,70 +1087,203 @@ void StrokePaint(VGPaint paint) {
 }
 
 // Take a copy of an area of the window ready for saving
-static char* grabWindow(VGuint x, VGuint y, VGuint *w, VGuint *h) {
-                // If either x,y is off screen then set to 0
-        if (x > state->window_width)
-                x = 0;
-        if (y > state->window_height)
-                y = 0;
-                // Now make sure w,h is valid, reducing if need be
-        VGuint width = *w;
-        VGuint height = *h;
-        if (width == 0)
-                width = state->window_width;
-        if ((x + width) > state->window_width)
-                width = state->window_width - x;
-        if (height == 0)
-                height = state->window_height;
-        if ((y + height) > state->window_height)
-                height = state->window_height - y;
-        *w = width;
-        *h = height;
-        char *ScreenBuffer = malloc(width * height * 4);
-        if (ScreenBuffer)
-                vgReadPixels(ScreenBuffer, (VGint)(width * 4), VG_sABGR_8888, 0, 0, (VGint)width, (VGint)height);
-        return ScreenBuffer;
+static char *grabWindow(VGint x, VGint y, VGint * w, VGint * h) {
+	// If either x,y is off screen then set to 0
+	if ((x < 0) || (x > (VGint) state->window_width))
+		x = 0;
+	if ((y < 0) || (y > (VGint) state->window_height))
+		y = 0;
+	// Now make sure w,h is valid, reducing if need be
+	VGint width = *w;
+	VGint height = *h;
+	if (width <= 0)
+		width = (VGint) state->window_width;
+	if ((x + width) > (VGint) state->window_width)
+		width = (VGint) state->window_width - x;
+	if (height <= 0)
+		height = (VGint) state->window_height;
+	if ((y + height) > (VGint) state->window_height)
+		height = (VGint) state->window_height - y;
+	*w = width;
+	*h = height;
+	char *ScreenBuffer = malloc((size_t) (width * height * 4));
+	if (ScreenBuffer)
+		vgReadPixels(ScreenBuffer, width * 4, VG_sABGR_8888, 0, 0, width, height);
+	return ScreenBuffer;
 }
 
 // Save an area of the window from (x,y) at a size of (w,h) to a .png
-// file. Returns 0 on success, else 1
-int WindowSaveAsPNG(const char *filename, VGuint x, VGuint y, VGuint w, VGuint h, int zlib_level)
-{
-        png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING,
-                                                      NULL, NULL, NULL);
-        if (png_ptr == NULL) {
-                return 1;
-        }
-        png_infop info_ptr = png_create_info_struct(png_ptr);
-        if (info_ptr) {
-                VGuint width = w;
-                VGuint height = h;
-                char *image = grabWindow(x, y, &width, &height);
-                FILE *file = fopen(filename, "wb");
-                if (file) {
-                        if (!setjmp(png_jmpbuf(png_ptr))) {
-                                png_init_io(png_ptr, file);
-                                png_set_IHDR(png_ptr, info_ptr, width, height,
-                                             8, PNG_COLOR_TYPE_RGB,
-                                             PNG_INTERLACE_NONE,
-                                             PNG_COMPRESSION_TYPE_BASE,
-                                             PNG_FILTER_TYPE_BASE);
-                                png_set_compression_level(png_ptr, zlib_level);
-                                png_write_info(png_ptr, info_ptr);
-                                png_set_packing(png_ptr);
-                                png_set_filler(png_ptr, 0, PNG_FILLER_AFTER);
-                                png_bytep row_pointer;
-                                row_pointer = (png_bytep)image + width*4*height;
-                                int row;
-                                for (row = height; row; row--) {
-                                        row_pointer -= width*4;
-                                        png_write_rows(png_ptr, &row_pointer, 1);
-                                }
-                        }
-                        png_write_end(png_ptr, info_ptr);
-                        fclose(file);
-                }
-        }
-        png_destroy_write_struct(&png_ptr, &info_ptr);
-        return 0;
+// file. Returns true on success.
+bool WindowSaveAsPNG(const char *filename, VGint x, VGint y, VGint w, VGint h, int zlib_level) {
+	bool success = false;
+	png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING,
+						      NULL, NULL, NULL);
+	if (png_ptr == NULL) {
+		return false;
+	}
+	png_infop info_ptr = png_create_info_struct(png_ptr);
+	if (info_ptr) {
+		int width = w;
+		int height = h;
+		char *image = grabWindow(x, y, &width, &height);
+		FILE *file = fopen(filename, "wb");
+		if (file) {
+			if (!setjmp(png_jmpbuf(png_ptr))) {
+				png_init_io(png_ptr, file);
+				png_set_IHDR(png_ptr, info_ptr, width, height,
+					     8, PNG_COLOR_TYPE_RGB,
+					     PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
+				png_set_compression_level(png_ptr, zlib_level);
+				png_write_info(png_ptr, info_ptr);
+				png_set_packing(png_ptr);
+				png_set_filler(png_ptr, 0, PNG_FILLER_AFTER);
+				png_bytep row_pointer;
+				row_pointer = (png_bytep) image + width * 4 * height;
+				VGint row;
+				for (row = height; row; row--) {
+					row_pointer -= width * 4;
+					png_write_rows(png_ptr, &row_pointer, 1);
+				}
+				png_write_end(png_ptr, info_ptr);
+				success = true;
+			} else
+				success = false;
+			fclose(file);
+		}
+	}
+	png_destroy_write_struct(&png_ptr, &info_ptr);
+	return success;
+}
+
+ // Load a PNG from filename into a VGImage, return width & height in
+ // pointers. For now we'll use the basic high-level reading.
+VGImage LoadImageFromPNG(const char *filename, VGint * w, VGint * h) {
+	VGImage image = VG_INVALID_HANDLE;
+	FILE *file = fopen(filename, "rb");
+	if (file == NULL)
+		return VG_INVALID_HANDLE;
+	const unsigned int sig_bytes = 8;
+	char header[sig_bytes];
+	if ((fread(header, 1, sig_bytes, file) != sig_bytes) || png_sig_cmp((png_bytep) header, 0, sig_bytes)) {
+		fclose(file);
+		return VG_INVALID_HANDLE;
+	}
+
+	png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING,
+						     NULL, NULL, NULL);
+	if (png_ptr == NULL) {
+		fclose(file);
+		return VG_INVALID_HANDLE;
+	}
+	png_infop info_ptr = png_create_info_struct(png_ptr);
+	if (info_ptr == NULL) {
+		fclose(file);
+		png_destroy_read_struct(&png_ptr, NULL, NULL);
+		return VG_INVALID_HANDLE;
+	}
+
+	png_uint_32 width, height;
+	int bpp, colour, interlace;
+	png_bytep buffer = NULL;
+	png_bytep *row_ptrs = NULL;
+	if (!setjmp(png_jmpbuf(png_ptr))) {
+		png_init_io(png_ptr, file);
+		png_set_sig_bytes(png_ptr, sig_bytes);
+		png_read_info(png_ptr, info_ptr);
+		png_get_IHDR(png_ptr, info_ptr, &width, &height, &bpp, &colour, &interlace, NULL, NULL);
+		if (bpp == 16)
+			png_set_strip_16(png_ptr);
+		if (bpp < 8) {
+			png_set_packing(png_ptr);
+			if (colour == PNG_COLOR_TYPE_GRAY)
+				png_set_expand_gray_1_2_4_to_8(png_ptr);
+		}
+		if (colour == PNG_COLOR_TYPE_PALETTE)
+			png_set_palette_to_rgb(png_ptr);
+		if (png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS) != 0)
+			png_set_tRNS_to_alpha(png_ptr);
+		if (colour == PNG_COLOR_TYPE_RGB || colour == PNG_COLOR_TYPE_GRAY)
+			png_set_add_alpha(png_ptr, 0xffff, PNG_FILLER_AFTER);
+		if (colour == PNG_COLOR_TYPE_GRAY || colour == PNG_COLOR_TYPE_GRAY_ALPHA)
+			png_set_gray_to_rgb(png_ptr);
+		png_read_update_info(png_ptr, info_ptr);
+		buffer = malloc(height * width * 4);
+		row_ptrs = malloc(height * sizeof *row_ptrs);
+		unsigned int i;
+		png_bytep rbuf = buffer + 4 * width * height;
+		for (i = 0; i < height; i++) {
+			rbuf -= width * 4;
+			row_ptrs[i] = rbuf;
+		}
+		png_read_image(png_ptr, row_ptrs);
+		png_read_end(png_ptr, info_ptr);
+		image = vgCreateImage(VG_sABGR_8888, width, height, VG_IMAGE_QUALITY_BETTER);
+		if (image) {
+			vgImageSubData(image, buffer, width * 4, VG_sABGR_8888, 0, 0, width, height);
+			*w = (VGint) width;
+			*h = (VGint) height;
+		}
+	}
+	if (row_ptrs)
+		free(row_ptrs);
+	if (buffer)
+		free(buffer);
+	png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+	fclose(file);
+	return image;
+}
+
+// DrawImageAt draws the image at a specified location
+void DrawImageAt(VGfloat x, VGfloat y, VGImage image) {
+	if (x == 0.0f && y == 0.0f) {
+		vgDrawImage(image);
+		return;
+	}
+
+	VGint mm = vgGeti(VG_MATRIX_MODE);
+	if (mm != VG_MATRIX_IMAGE_USER_TO_SURFACE)
+		vgSeti(VG_MATRIX_MODE, VG_MATRIX_IMAGE_USER_TO_SURFACE);
+	VGfloat matrix[9];
+	vgGetMatrix(matrix);
+	vgTranslate(x, y);
+	vgDrawImage(image);
+	vgLoadMatrix(matrix);
+	if (mm != VG_MATRIX_IMAGE_USER_TO_SURFACE)
+		vgSeti(VG_MATRIX_MODE, mm);
+}
+
+// DrawImageAtFit draws the image scaled to fit in requested size
+void DrawImageAtFit(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGImage image) {
+	VGint mm = vgGeti(VG_MATRIX_MODE);
+	if (mm != VG_MATRIX_IMAGE_USER_TO_SURFACE)
+		vgSeti(VG_MATRIX_MODE, VG_MATRIX_IMAGE_USER_TO_SURFACE);
+	VGfloat matrix[9];
+	vgGetMatrix(matrix);
+	VGint iw = vgGetParameteri(image, VG_IMAGE_WIDTH);
+	VGint ih = vgGetParameteri(image, VG_IMAGE_HEIGHT);
+	VGfloat sx = w / (VGfloat) iw;
+	VGfloat sy = h / (VGfloat) ih;
+	vgTranslate(x, y);
+	vgScale(sx, sy);
+	vgDrawImage(image);
+	vgLoadMatrix(matrix);
+	if (mm != VG_MATRIX_IMAGE_USER_TO_SURFACE)
+		vgSeti(VG_MATRIX_MODE, mm);
+}
+
+//
+// Miscellaneous utility functions.
+//
+
+// CopyMatrixPathToImage copies the path matrix to the image matrix.
+void CopyMatrixPathToImage() {
+	VGint mm = vgGeti(VG_MATRIX_MODE);
+	if (mm != VG_MATRIX_PATH_USER_TO_SURFACE)
+		vgSeti(VG_MATRIX_MODE, VG_MATRIX_PATH_USER_TO_SURFACE);
+	VGfloat matrix[9];
+	vgGetMatrix(matrix);
+	vgSeti(VG_MATRIX_MODE, VG_MATRIX_IMAGE_USER_TO_SURFACE);
+	vgLoadMatrix(matrix);
+	if (mm != VG_MATRIX_IMAGE_USER_TO_SURFACE)
+		vgSeti(VG_MATRIX_MODE, mm);
 }

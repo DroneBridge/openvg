@@ -24,5 +24,5 @@ extern "C" {
 	extern Fontinfo SansTypeface, SerifTypeface, MonoTypeface;
 #if defined(__cplusplus)
 }
-#endif				// OPENVG_FONTINFO_H
 #endif
+#endif				// OPENVG_FONTINFO_H

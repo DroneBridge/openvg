@@ -16,7 +16,7 @@ static void setWindowParams(STATE_T * state, int32_t x, int32_t y, VC_RECT_T * s
 		dx = 0;
 		sx = state->window_width - 1;
 		w = 1;
-	} else if (x < 0) {				// Part of left is off
+	} else if (x < 0) {				   // Part of left is off
 		dx = 0;
 		sx = -x;
 		w = state->window_width - sx;
@@ -24,35 +24,35 @@ static void setWindowParams(STATE_T * state, int32_t x, int32_t y, VC_RECT_T * s
 		dx = x;
 		sx = 0;
 		w = state->window_width;
-	} else if (x < (int)state->screen_width) {	// Part of right is off
+	} else if (x < (int)state->screen_width) {	   // Part of right is off
 		dx = x;
 		sx = 0;
 		w = state->screen_width - x;
-	} else {					// Too far off right
+	} else {					   // Too far off right
 		x = state->screen_width - 1;
 		dx = state->screen_width - 1;
 		sx = 0;
 		w = 1;
 	}
 
-	if (y < (1 - (int)state->window_height)) {	// Too far off top
+	if (y < (1 - (int)state->window_height)) {	   // Too far off top
 		y = 1 - (int)state->window_height;
 		dy = 0;
 		sy = state->window_height - 1;
 		h = 1;
-	} else if (y < 0) {				// Part of top is off
+	} else if (y < 0) {				   // Part of top is off
 		dy = 0;
 		sy = -y;
 		h = state->window_height - sy;
-	} else if (y < (int)(state->screen_height - state->window_height)) {// On
+	} else if (y < (int)(state->screen_height - state->window_height)) {	// On
 		dy = y;
 		sy = 0;
 		h = state->window_height;
-	} else if (y < (int)state->screen_height) {		// Part of bottom is off
+	} else if (y < (int)state->screen_height) {	   // Part of bottom is off
 		dy = y;
 		sy = 0;
 		h = state->screen_height - y;
-	} else {					// Wholly off bottom
+	} else {					   // Wholly off bottom
 		y = state->screen_height - 1;
 		dy = state->screen_height - 1;
 		sy = 0;
@@ -178,6 +178,7 @@ void dispmanChangeWindowOpacity(STATE_T * state, uint32_t alpha) {
 
 	dispman_update = vc_dispmanx_update_start(0);
 	// The 1<<1 below means update the alpha value
-	vc_dispmanx_element_change_attributes(dispman_update, state->element, 1 << 1, 0, (uint8_t)alpha, 0, 0, 0, DISPMANX_NO_ROTATE);
+	vc_dispmanx_element_change_attributes(dispman_update, state->element, 1 << 1, 0, (uint8_t) alpha, 0, 0, 0,
+					      DISPMANX_NO_ROTATE);
 	vc_dispmanx_update_submit_sync(dispman_update);
 }

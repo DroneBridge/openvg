@@ -18,10 +18,10 @@ FONTFILES=DejaVuSans.inc  DejaVuSansMono.inc DejaVuSerif.inc
 
 all:	font2openvg fonts library	
 
-libshapes.o:	libshapes.c shapes.h fontinfo.h fonts
+libshapes.o:	libshapes.c shapes.h fontinfo.h fontsystem.h fonts
 	$(CC) $(CCOPTS) $(INCLUDEFLAGS) -c libshapes.c
 
-fontsystem.o:	fontsystem.c fontinfo.h
+fontsystem.o:	fontsystem.c fontinfo.h fontsystem.h
 	$(CC) $(CCOPTS) $(INCLUDEFLAGS) -I/usr/include/freetype2 -c fontsystem.c
 
 gopenvg:	openvg.go

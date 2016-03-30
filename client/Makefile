@@ -54,3 +54,6 @@ fontlist:	fontlist.c ../libshapes.o ../oglinit.o ../fontsystem.o
 
 fonttest:	fonttest.c
 	$(CC) $(CCOPTS) $(INCLUDEFLAGS) -o fonttest fonttest.c -lshapes $(LIBFLAGS)
+
+image:	image.c ../libshapes.o ../oglinit.o ../fontsystem.o
+	$(CC) $(CCOPTS) $(INCLUDEFLAGS) -o image image.c ../libshapes.o ../oglinit.o ../fontsystem.o $(LIBFLAGS)
