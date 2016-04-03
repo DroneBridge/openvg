@@ -30,11 +30,11 @@ extern "C" {
 	extern void Arc(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat);
 	extern void Image(VGfloat, VGfloat, VGint, VGint, const char *);
 	extern void Start(VGint, VGint);
-	extern void End();
-	extern void SaveEnd(const char *);
+	extern bool End();
+	extern bool SaveEnd(const char *);
 	extern void Background(VGuint, VGuint, VGuint);
 	extern void BackgroundRGB(VGuint, VGuint, VGuint, VGfloat);
-	extern void init(uint32_t *, uint32_t *);
+	extern bool init(int32_t *, int32_t *);
 	extern void finish();
 	extern void setfill(VGfloat[4]);
 	extern void setstroke(VGfloat[4]);
@@ -57,7 +57,7 @@ extern "C" {
 	extern VGImage createImageFromJpeg(const char *);
 
 	// Added by Paeryn
-	extern void initWindowSize(int32_t x, int32_t y, uint32_t w, uint32_t h);
+	extern void initWindowSize(int32_t x, int32_t y, int32_t w, int32_t h);
 	extern Fontinfo LoadTTFFile(const char *fname);
 	extern Fontinfo LoadTTF(const char *font_style);
 	extern void UnloadTTF(Fontinfo f);

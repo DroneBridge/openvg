@@ -118,7 +118,8 @@ Fontinfo loadfont(const int *Points,
 			path = vgCreatePath(VG_PATH_FORMAT_STANDARD,
 					    VG_PATH_DATATYPE_S_32,
 					    1.0f / 65536.0f, 0.0f, ic, p_count, VG_PATH_CAPABILITY_APPEND_TO);
-			vgAppendPathData(path, ic, instructions, p);
+			if (path != VG_INVALID_HANDLE)
+				vgAppendPathData(path, ic, instructions, p);
 		}
 		vgSetGlyphToPath(font, (VGuint) i, path, VG_FALSE, origin, escapement);
 		if (path != VG_INVALID_HANDLE)
@@ -237,7 +238,8 @@ VGImage createImageFromJpeg(const char *filename) {
 
 	// Create VG image
 	img = vgCreateImage(rgbaFormat, (VGint) width, (VGint) height, VG_IMAGE_QUALITY_BETTER);
-	vgImageSubData(img, data, (VGint) dstride, rgbaFormat, 0, 0, (VGint) width, (VGint) height);
+	if (img != VG_INVALID_HANDLE)
+		vgImageSubData(img, data, (VGint) dstride, rgbaFormat, 0, 0, (VGint) width, (VGint) height);
 
 	// Cleanup
 	jpeg_destroy_decompress(&jdc);
@@ -252,16 +254,20 @@ void makeimage(VGfloat x, VGfloat y, VGint w, VGint h, VGubyte * data) {
 	VGint dstride = w * 4;
 	VGImageFormat rgbaFormat = VG_sABGR_8888;
 	VGImage img = vgCreateImage(rgbaFormat, w, h, VG_IMAGE_QUALITY_BETTER);
-	vgImageSubData(img, (void *)data, dstride, rgbaFormat, 0, 0, w, h);
-	vgSetPixels(x, y, img, 0, 0, w, h);
-	vgDestroyImage(img);
+	if (img != VG_INVALID_HANDLE) {
+		vgImageSubData(img, (void *)data, dstride, rgbaFormat, 0, 0, w, h);
+		vgSetPixels(x, y, img, 0, 0, w, h);
+		vgDestroyImage(img);
+	}
 }
 
 // Image places an image at the specifed location
 void Image(VGfloat x, VGfloat y, VGint w, VGint h, const char *filename) {
 	VGImage img = createImageFromJpeg(filename);
-	vgSetPixels(x, y, img, 0, 0, w, h);
-	vgDestroyImage(img);
+	if (img != VG_INVALID_HANDLE) {
+		vgSetPixels(x, y, img, 0, 0, w, h);
+		vgDestroyImage(img);
+	}
 }
 
 // dumpscreen writes the raster
@@ -271,9 +277,11 @@ void dumpscreen(VGuint w, VGuint h, FILE * fp) {
 	if (h > state->window_height)
 		h = state->window_height;
 	void *ScreenBuffer = malloc(w * h * 4);
-	vgReadPixels(ScreenBuffer, (VGint) (w * 4), VG_sABGR_8888, 0, 0, (VGint) w, (VGint) h);
-	fwrite(ScreenBuffer, 1, w * h * 4, fp);
-	free(ScreenBuffer);
+	if (ScreenBuffer) {
+		vgReadPixels(ScreenBuffer, (VGint) (w * 4), VG_sABGR_8888, 0, 0, (VGint) w, (VGint) h);
+		fwrite(ScreenBuffer, 1, w * h * 4, fp);
+		free(ScreenBuffer);
+	}
 }
 
 Fontinfo SansTypeface, SerifTypeface, MonoTypeface;
@@ -281,15 +289,17 @@ Fontinfo SansTypeface, SerifTypeface, MonoTypeface;
 // initWindowSize requests a specific window size & position, if not called
 // then init() will open a full screen window.
 // Done this way to preserve the original init() behaviour.
-void initWindowSize(int32_t x, int32_t y, uint32_t w, uint32_t h) {
+void initWindowSize(int32_t x, int32_t y, int32_t w, int32_t h) {
 	init_x = x;
 	init_y = y;
-	init_w = w;
-	init_h = h;
+	init_w = w < 0 ? 0 : (uint32_t) w;
+	init_h = h < 0 ? 0 : (uint32_t) h;
 }
 
-// init sets the system to its initial state
-void init(uint32_t * w, uint32_t * h) {
+// init sets the system to its initial state, returns false if an
+// error occured.
+bool init(int32_t * w, int32_t * h) {
+	int err_state = 0;
 	bcm_host_init();
 	memset(state, 0, sizeof(*state));
 	state->window_x = init_x;
@@ -333,53 +343,88 @@ void init(uint32_t * w, uint32_t * h) {
 		MonoTypeface->Name = "DejaVu Sans Mono";
 		MonoTypeface->Style = "Book";
 	}
-	*w = state->window_width;
-	*h = state->window_height;
+	*w = (int32_t) state->window_width;
+	*h = (int32_t) state->window_height;
 
 	if (!SansTypeface || !SerifTypeface || !MonoTypeface) {
 		fputs("libshapes failed to load the default fonts.", stderr);
 	}
 
 	fill_paint = vgCreatePaint();
+	err_state |= fill_paint == VG_INVALID_HANDLE;
+
 	stroke_paint = vgCreatePaint();
+	err_state |= stroke_paint == VG_INVALID_HANDLE;
+
 	common_path = vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 0, 0, VG_PATH_CAPABILITY_APPEND_TO);
+	err_state |= common_path == VG_INVALID_HANDLE;
+
+	VGubyte segments[] = { VG_MOVE_TO_ABS, VG_CUBIC_TO };
+	VGfloat coords[] = { 0, 0, 1, -1, 2, 1, 3, 0 };
+
 	cbezier_path =
 	    vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 2, 8,
 			 VG_PATH_CAPABILITY_APPEND_TO | VG_PATH_CAPABILITY_MODIFY);
-	VGubyte segments[] = { VG_MOVE_TO_ABS, VG_CUBIC_TO };
-	VGfloat coords[] = { 0, 0, 1, -1, 2, 1, 3, 0 };
-	vgAppendPathData(cbezier_path, 2, segments, coords);
+	if (cbezier_path == VG_INVALID_HANDLE)
+		err_state |= 1;
+	else
+		vgAppendPathData(cbezier_path, 2, segments, coords);
 
 	qbezier_path =
 	    vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 2, 6,
 			 VG_PATH_CAPABILITY_APPEND_TO | VG_PATH_CAPABILITY_MODIFY);
-	segments[1] = VG_QUAD_TO;
-	vgAppendPathData(qbezier_path, 2, segments, coords);
+	if (qbezier_path == VG_INVALID_HANDLE)
+		err_state |= 1;
+	else {
+		segments[1] = VG_QUAD_TO;
+		vgAppendPathData(qbezier_path, 2, segments, coords);
+	}
 
 	rect_path =
 	    vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 5, 5,
 			 VG_PATH_CAPABILITY_APPEND_TO | VG_PATH_CAPABILITY_MODIFY);
-	vguRect(rect_path, 0, 0, 1, 1);
+	if (rect_path == VG_INVALID_HANDLE)
+		err_state |= 1;
+	else
+		vguRect(rect_path, 0, 0, 1, 1);
 
 	line_path =
 	    vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 2, 4,
 			 VG_PATH_CAPABILITY_APPEND_TO | VG_PATH_CAPABILITY_MODIFY);
-	vguLine(line_path, 0, 0, 1, 1);
+	if (line_path == VG_INVALID_HANDLE)
+		err_state |= 1;
+	else
+		vguLine(line_path, 0, 0, 1, 1);
 
 	roundrect_path =
 	    vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 10, 26,
 			 VG_PATH_CAPABILITY_APPEND_TO | VG_PATH_CAPABILITY_MODIFY);
-	vguRoundRect(roundrect_path, 0, 0, 2, 2, 1, 1);
+	if (roundrect_path == VG_INVALID_HANDLE)
+		err_state |= 1;
+	else
+		vguRoundRect(roundrect_path, 0, 0, 2, 2, 1, 1);
 
 	ellipse_path =
 	    vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 4, 12,
 			 VG_PATH_CAPABILITY_APPEND_TO | VG_PATH_CAPABILITY_MODIFY);
-	vguEllipse(ellipse_path, 0, 0, 1, 1);
+	if (ellipse_path == VG_INVALID_HANDLE)
+		err_state |= 1;
+	else
+		vguEllipse(ellipse_path, 0, 0, 1, 1);
+
+	if (err_state) {
+		fprintf(stderr, "Failed initialising libshapes paths.\n");
+		finish();
+		return false;
+	}
 
 	VGErrorCode vgerror = vgGetError();
 	if (vgerror != VG_NO_ERROR) {
-		fprintf(stderr, "OpenVG gave error %x whilst initilising libshapes.", vgerror);
+		fprintf(stderr, "OpenVG gave error %x whilst initilising libshapes.\n", vgerror);
+		finish();
+		return false;
 	}
+	return true;
 }
 
 // finish cleans up
@@ -805,19 +850,30 @@ void Start(VGint width, VGint height) {
 	vgLoadIdentity();
 }
 
-// End checks for errors, and renders to the display
-void End() {
+// End checks for errors, and renders to the display, returns false if
+// an error was detected.
+bool End() {
+	bool success = true;
 	VGuint error = vgGetError();
-	if (error != VG_NO_ERROR)
+	if (error != VG_NO_ERROR) {
 		font_error(error, "***End()***");
+		success = false;
+	}
 	eglSwapBuffers(state->display, state->surface);
-	assert(eglGetError() == EGL_SUCCESS);
+	if (eglGetError() != EGL_SUCCESS)
+		success = false;
+	return success;
 }
 
-// SaveEnd dumps the raster before rendering to the display 
-void SaveEnd(const char *filename) {
+// SaveEnd dumps the raster before rendering to the display, returns false if an error was detected.
+bool SaveEnd(const char *filename) {
+	bool success = true;
+	VGuint error = vgGetError();
+	if (error != VG_NO_ERROR) {
+		font_error(error, "***End()***");
+		success = false;
+	}
 	FILE *fp;
-	assert(vgGetError() == VG_NO_ERROR);
 	if (strlen(filename) == 0) {
 		dumpscreen(state->screen_width, state->screen_height, stdout);
 	} else {
@@ -828,7 +884,9 @@ void SaveEnd(const char *filename) {
 		}
 	}
 	eglSwapBuffers(state->display, state->surface);
-	assert(eglGetError() == EGL_SUCCESS);
+	if (eglGetError() != EGL_SUCCESS)
+		success = false;
+	return success;
 }
 
 // Backgroud clears the screen to a solid background color
@@ -945,7 +1003,8 @@ VGPath CbezierPath(VGfloat sx, VGfloat sy, VGfloat cx, VGfloat cy, VGfloat px, V
 	VGubyte segments[] = { VG_MOVE_TO_ABS, VG_CUBIC_TO };
 	VGfloat coords[] = { sx, sy, cx, cy, px, py, ex, ey };
 	VGPath path = newpath_ext();
-	vgAppendPathData(path, 2, segments, coords);
+	if (path != VG_INVALID_HANDLE)
+		vgAppendPathData(path, 2, segments, coords);
 	return path;
 }
 
@@ -953,39 +1012,46 @@ VGPath QbezierPath(VGfloat sx, VGfloat sy, VGfloat cx, VGfloat cy, VGfloat ex, V
 	VGubyte segments[] = { VG_MOVE_TO_ABS, VG_QUAD_TO };
 	VGfloat coords[] = { sx, sy, cx, cy, ex, ey };
 	VGPath path = newpath_ext();
-	vgAppendPathData(path, 2, segments, coords);
+	if (path != VG_INVALID_HANDLE)
+		vgAppendPathData(path, 2, segments, coords);
 	return path;
 }
 
 VGPath PolygonPath(VGfloat * x, VGfloat * y, VGint n) {
 	VGfloat points[n * 2];
 	VGPath path = newpath_ext();
-	interleave(x, y, n, points);
-	vguPolygon(path, points, n, VG_FALSE);
+	if (path != VG_INVALID_HANDLE) {
+		interleave(x, y, n, points);
+		vguPolygon(path, points, n, VG_FALSE);
+	}
 	return path;
 }
 
 VGPath RectPath(VGfloat x, VGfloat y, VGfloat w, VGfloat h) {
 	VGPath path = newpath_ext();
-	vguRect(path, x, y, w, h);
+	if (path != VG_INVALID_HANDLE)
+		vguRect(path, x, y, w, h);
 	return path;
 }
 
 VGPath LinePath(VGfloat x1, VGfloat y1, VGfloat x2, VGfloat y2) {
 	VGPath path = newpath_ext();
-	vguLine(path, x1, y1, x2, y2);
+	if (path != VG_INVALID_HANDLE)
+		vguLine(path, x1, y1, x2, y2);
 	return path;
 }
 
 VGPath RoundrectPath(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat rw, VGfloat rh) {
 	VGPath path = newpath_ext();
-	vguRoundRect(path, x, y, w, h, rw, rh);
+	if (path != VG_INVALID_HANDLE)
+		vguRoundRect(path, x, y, w, h, rw, rh);
 	return path;
 }
 
 VGPath EllipsePath(VGfloat x, VGfloat y, VGfloat w, VGfloat h) {
 	VGPath path = newpath_ext();
-	vguEllipse(path, x, y, w, h);
+	if (path != VG_INVALID_HANDLE)
+		vguEllipse(path, x, y, w, h);
 	return path;
 }
 
@@ -995,7 +1061,8 @@ VGPath CirclePath(VGfloat x, VGfloat y, VGfloat r) {
 
 VGPath ArcPath(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat sa, VGfloat aext) {
 	VGPath path = newpath_ext();
-	vguArc(path, x, y, w, h, sa, aext, VGU_ARC_OPEN);
+	if (path != VG_INVALID_HANDLE)
+		vguArc(path, x, y, w, h, sa, aext, VGU_ARC_OPEN);
 	return path;
 }
 
@@ -1047,17 +1114,21 @@ VGPaint Paint(VGuint r, VGuint g, VGuint b, VGfloat a) {
 	VGfloat colour[4];
 	RGBA(r, g, b, a, colour);
 	VGPaint paint = vgCreatePaint();
-	vgSetParameteri(paint, VG_PAINT_TYPE, VG_PAINT_TYPE_COLOR);
-	vgSetParameterfv(paint, VG_PAINT_COLOR, 4, colour);
+	if (paint != VG_INVALID_HANDLE) {
+		vgSetParameteri(paint, VG_PAINT_TYPE, VG_PAINT_TYPE_COLOR);
+		vgSetParameterfv(paint, VG_PAINT_COLOR, 4, colour);
+	}
 	return paint;
 }
 
 VGPaint LinearGradientPaint(VGfloat x1, VGfloat y1, VGfloat x2, VGfloat y2, VGfloat * stops, VGint ns) {
 	VGfloat lgcoord[4] = { x1, y1, x2, y2 };
 	VGPaint paint = vgCreatePaint();
-	vgSetParameteri(paint, VG_PAINT_TYPE, VG_PAINT_TYPE_LINEAR_GRADIENT);
-	vgSetParameterfv(paint, VG_PAINT_LINEAR_GRADIENT, 4, lgcoord);
-	setstop(paint, stops, ns);
+	if (paint != VG_INVALID_HANDLE) {
+		vgSetParameteri(paint, VG_PAINT_TYPE, VG_PAINT_TYPE_LINEAR_GRADIENT);
+		vgSetParameterfv(paint, VG_PAINT_LINEAR_GRADIENT, 4, lgcoord);
+		setstop(paint, stops, ns);
+	}
 	return paint;
 }
 
@@ -1065,9 +1136,11 @@ VGPaint LinearGradientPaint(VGfloat x1, VGfloat y1, VGfloat x2, VGfloat y2, VGfl
 VGPaint RadialGradientPaint(VGfloat cx, VGfloat cy, VGfloat fx, VGfloat fy, VGfloat radius, VGfloat * stops, VGint ns) {
 	VGfloat radialcoord[5] = { cx, cy, fx, fy, radius };
 	VGPaint paint = vgCreatePaint();
-	vgSetParameteri(paint, VG_PAINT_TYPE, VG_PAINT_TYPE_RADIAL_GRADIENT);
-	vgSetParameterfv(paint, VG_PAINT_RADIAL_GRADIENT, 5, radialcoord);
-	setstop(paint, stops, ns);
+	if (paint != VG_INVALID_HANDLE) {
+		vgSetParameteri(paint, VG_PAINT_TYPE, VG_PAINT_TYPE_RADIAL_GRADIENT);
+		vgSetParameterfv(paint, VG_PAINT_RADIAL_GRADIENT, 5, radialcoord);
+		setstop(paint, stops, ns);
+	}
 	return paint;
 }
 
@@ -1123,10 +1196,12 @@ bool WindowSaveAsPNG(const char *filename, VGint x, VGint y, VGint w, VGint h, i
 	}
 	png_infop info_ptr = png_create_info_struct(png_ptr);
 	if (info_ptr) {
+		FILE *file = NULL;
 		int width = w;
 		int height = h;
 		char *image = grabWindow(x, y, &width, &height);
-		FILE *file = fopen(filename, "wb");
+		if (image != NULL)
+			file = fopen(filename, "wb");
 		if (file) {
 			if (!setjmp(png_jmpbuf(png_ptr))) {
 				png_init_io(png_ptr, file);
@@ -1209,6 +1284,8 @@ VGImage LoadImageFromPNG(const char *filename, VGint * w, VGint * h) {
 		png_read_update_info(png_ptr, info_ptr);
 		buffer = malloc(height * width * 4);
 		row_ptrs = malloc(height * sizeof *row_ptrs);
+		if (buffer == NULL || row_ptrs == NULL)
+			longjmp(png_jmpbuf(png_ptr), 1);
 		unsigned int i;
 		png_bytep rbuf = buffer + 4 * width * height;
 		for (i = 0; i < height; i++) {
@@ -1218,7 +1295,7 @@ VGImage LoadImageFromPNG(const char *filename, VGint * w, VGint * h) {
 		png_read_image(png_ptr, row_ptrs);
 		png_read_end(png_ptr, info_ptr);
 		image = vgCreateImage(VG_sABGR_8888, width, height, VG_IMAGE_QUALITY_BETTER);
-		if (image) {
+		if (image != VG_INVALID_HANDLE) {
 			vgImageSubData(image, buffer, width * 4, VG_sABGR_8888, 0, 0, width, height);
 			*w = (VGint) width;
 			*h = (VGint) height;

@@ -17,10 +17,10 @@
  * correctly.
  * 
  * In the case of the rotating cursor here we need to
- * move the origin to the hotspot of the cursor (it's tip) so when we
- * say draw it at say (400,500) we mean place the tip at that
+ * move the origin to the hotspot of the cursor (it's tip at 3,3) so
+ * when we say draw it at say (400,500) we mean place the tip at that
  * position. Since the origin is normally at the bottom-left, the
- * hotspot is at (6,28) from there. Negative values are used for the
+ * hotspot is at (3,height-3) from there. Negative values are used for the
  * hotspot location as we need to move the image left & down.
  * So in full we want to translate the origin to the hotspot, rotate
  * the image and then translate the cursor to it's position. Doing
@@ -36,27 +36,29 @@
  * function to apply the translation before the user's transforms...
  */
 
-/*
- * Cursor image taken from ykskys' shadowed version of XsX's
- * alphablended cursors.
- * http://www.donationcoder.com/Forums/bb/index.php?topic=11282.0
- * original cursors from
- * http://xsx.deviantart.com/art/XsX-Winxp-cursors-FULL-set-100354
- * http://xsx.deviantart.com/art/xsx-cursors-upped-again-568467
- */
 int main() {
-	unsigned int width, height;
-        init(&width, &height);
+	int width, height;
+        if (!init(&width, &height))
+                return 1;
+        
 	Start(width, height);
 	Background(0, 0, 0);
         Fill(44, 77, 232, 1);
         
-        VGImage desert = createImageFromJpeg("desert1.jpg");
         int32_t desert_w, desert_h, cursor_w, cursor_h;
-        desert_w = vgGetParameteri(desert, VG_IMAGE_WIDTH);
-        desert_h = vgGetParameteri(desert, VG_IMAGE_HEIGHT);
+        VGImage desert = createImageFromJpeg("desert1.jpg");
+        if (desert == VG_INVALID_HANDLE)
+                fputs("Failed to load desert1.jpg image.\n", stderr);
+        else {
+                desert_w = vgGetParameteri(desert, VG_IMAGE_WIDTH);
+                desert_h = vgGetParameteri(desert, VG_IMAGE_HEIGHT);
+        }
+        
         VGImage cursor = LoadImageFromPNG("Select.png", &cursor_w, &cursor_h);
-        const VGfloat hotspot_x = -6.0f, hotspot_y = -28.0f;
+        if (cursor == VG_INVALID_HANDLE)
+                fputs("Failed to load Select.png cursor.\n", stderr);
+
+        const VGfloat hotspot_x = -3.0f, hotspot_y = -(cursor_h-3.0f);
         if (desert && cursor) {
                 VGfloat desertw = (VGfloat)desert_w;
                 VGfloat deserth = (VGfloat)desert_h;
@@ -100,7 +102,10 @@ int main() {
                         vgDrawImage(cursor);
                         if ((rot_angle += 5.0f) > 360.0f)
                                 rot_angle -= 360.0f;
-                        End();
+                        if (!End()) {
+                                fprintf(stderr, "Error @ count = %d\n", count);
+                                break;
+                        }
                 }
         }
                 // It's safe to destroy objects that don't exist -
