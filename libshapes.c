@@ -256,7 +256,7 @@ void makeimage(VGfloat x, VGfloat y, VGint w, VGint h, VGubyte * data) {
 	VGImage img = vgCreateImage(rgbaFormat, w, h, VG_IMAGE_QUALITY_BETTER);
 	if (img != VG_INVALID_HANDLE) {
 		vgImageSubData(img, (void *)data, dstride, rgbaFormat, 0, 0, w, h);
-		vgSetPixels(x, y, img, 0, 0, w, h);
+		vgSetPixels((VGint) x, (VGint) y, img, 0, 0, w, h);
 		vgDestroyImage(img);
 	}
 }
@@ -265,7 +265,7 @@ void makeimage(VGfloat x, VGfloat y, VGint w, VGint h, VGubyte * data) {
 void Image(VGfloat x, VGfloat y, VGint w, VGint h, const char *filename) {
 	VGImage img = createImageFromJpeg(filename);
 	if (img != VG_INVALID_HANDLE) {
-		vgSetPixels(x, y, img, 0, 0, w, h);
+		vgSetPixels((VGint) x, (VGint) y, img, 0, 0, w, h);
 		vgDestroyImage(img);
 	}
 }
@@ -1363,4 +1363,44 @@ void CopyMatrixPathToImage() {
 	vgLoadMatrix(matrix);
 	if (mm != VG_MATRIX_IMAGE_USER_TO_SURFACE)
 		vgSeti(VG_MATRIX_MODE, mm);
+}
+
+// Pointer cursor
+static cursor_t *priv_cursor;
+
+bool CreateCursor(uint32_t * data, uint32_t width, uint32_t height, uint32_t hot_x, uint32_t hot_y) {
+	if (!state->dmx_display)
+		return false;
+	priv_cursor = createCursor(state, data, width, height, hot_x, hot_y, false);
+	return (priv_cursor != NULL);
+}
+
+bool CreateCursorFromVGImage(VGImage img, uint32_t hot_x, uint32_t hot_y) {
+	if (!state->dmx_display)
+		return false;
+	VGint w = vgGetParameteri(img, VG_IMAGE_WIDTH);
+	VGint h = vgGetParameteri(img, VG_IMAGE_HEIGHT);
+	uint32_t *data = malloc(w * 4 * h);
+	if (data == NULL)
+		return false;
+
+	vgGetImageSubData(img, data, w * 4, VG_sARGB_8888, 0, 0, w, h);
+	priv_cursor = createCursor(state, data, w, h, hot_x, hot_y, true);
+	return (priv_cursor != NULL);
+}
+
+void ShowCursor() {
+	showCursor(priv_cursor);
+}
+
+void HideCursor() {
+	hideCursor(priv_cursor);
+}
+
+void MoveCursor(int32_t x, int32_t y) {
+	moveCursor(state, priv_cursor, x, y);
+}
+
+void DeleteCursor() {
+	deleteCursor(priv_cursor);
 }

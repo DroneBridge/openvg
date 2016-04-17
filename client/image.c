@@ -38,6 +38,8 @@
 
 int main() {
 	int width, height;
+        initWindowSize(100, 100, 1720, 880);
+        
         if (!init(&width, &height))
                 return 1;
         
@@ -69,15 +71,25 @@ int main() {
                 VGfloat scaled_inc = 2.0f;
                 VGfloat rot_angle = 0.0f;
                 
-                        // Set-up for the spinning cursor
-                        // Pre-set the matrix mode to image as nothing
-                        // else needs any other mode in this
-                        // example. Translate the point (6,28) which
-                        // is the tip of the arrow to (0,0) ready for
-                        // rotates and save the matrix
+                // Set-up for the spinning cursor
+                // Pre-set the matrix mode to image as nothing
+                // else needs any other mode in this
+                // example. Translate the point (6,28) which
+                // is the tip of the arrow to (0,0) ready for
+                // rotates and save the matrix
                 vgSeti(VG_MATRIX_MODE, VG_MATRIX_IMAGE_USER_TO_SURFACE);
+
+                // Create cursor - get image from VGimage
+                uint32_t *cur_img = malloc(cursor_w * 4 * cursor_h);
+                vgGetImageSubData(cursor, cur_img, cursor_w * 4,
+                                  VG_sARGB_8888, 0, 0, cursor_w, cursor_h);
+                CreateCursorFromVGImage(cursor, 3, 3);
+                MoveCursor(0, 0);
+                ShowCursor();
+
                 int count;
-                for (count = 2000; count; count--) {
+                for (count = 0; count < 2000; count++) {
+                        MoveCursor(count % width, count % height);
                         WindowClear();
                         Circle(width / 2, 0, width); // Background
                         vgLoadIdentity(); // Reset transform matrix
@@ -107,10 +119,11 @@ int main() {
                                 break;
                         }
                 }
+                DeleteCursor();
         }
-                // It's safe to destroy objects that don't exist -
-                // OpenVG will give us an error but we already know
-                // that and are exiting anyway.
+        // It's safe to destroy objects that don't exist -
+        // OpenVG will give us an error but we already know
+        // that and are exiting anyway.
         vgDestroyImage(cursor);
         vgDestroyImage(desert);
 	finish();

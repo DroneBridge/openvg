@@ -107,6 +107,14 @@ extern "C" {
 	extern void FillPaint(VGPaint paint);
 	extern void StrokePaint(VGPaint paint);
 
+	// Cursor
+	extern bool CreateCursor(uint32_t * data, uint32_t width, uint32_t height, uint32_t hot_x, uint32_t hot_y);
+	extern bool CreateCursorFromVGImage(VGImage img, uint32_t hot_x, uint32_t hot_y);
+	extern void ShowCursor();
+	extern void HideCursor();
+	extern void MoveCursor(int32_t x, int32_t y);
+	extern void DeleteCursor();
+
 #if defined(__cplusplus)
 }
 #endif

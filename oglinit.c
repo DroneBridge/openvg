@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <EGL/egl.h>
 #include "eglstate.h"
 #include <bcm_host.h>
@@ -130,6 +131,7 @@ void oglinit(STATE_T * state) {
 	setWindowParams(state, state->window_x, state->window_y, &src_rect, &dst_rect);
 
 	dispman_display = vc_dispmanx_display_open(0 /* LCD */ );
+	state->dmx_display = dispman_display;
 	dispman_update = vc_dispmanx_update_start(0);
 
 	dispman_element = vc_dispmanx_element_add(dispman_update, dispman_display, 0 /*layer */ , &dst_rect, 0 /*src */ ,
@@ -181,4 +183,132 @@ void dispmanChangeWindowOpacity(STATE_T * state, uint32_t alpha) {
 	vc_dispmanx_element_change_attributes(dispman_update, state->element, 1 << 1, 0, (uint8_t) alpha, 0, 0, 0,
 					      DISPMANX_NO_ROTATE);
 	vc_dispmanx_update_submit_sync(dispman_update);
+}
+
+// Custom cursor pointer code.
+
+static inline int align_up(int x, int y) {
+	return ((x + y - 1) & ~(y - 1));
+}
+
+// Create a cursor
+cursor_t *createCursor(STATE_T * state, const uint32_t * data, uint32_t w, uint32_t h, uint32_t hx, uint32_t hy, bool upsidedown) {
+	cursor_t *cursor;
+	VC_RECT_T dst_rect;
+	int32_t pitch, height;
+
+	if (w == 0 || w > state->screen_width || h == 0 || h > state->screen_height)
+		return NULL;
+	// Hotspot has to be within the image.
+	if (hx >= w || hy >= h)
+		return NULL;
+	pitch = align_up(w * 4, 32);
+	height = align_up(h, 16);
+	cursor = calloc(1, sizeof *cursor);
+	if (cursor == NULL)
+		return NULL;
+
+	// Set the size of cursor and position it at top-left for now.
+	cursor->state.window_width = w;
+	cursor->state.window_height = h;
+	cursor->state.screen_width = state->window_width;
+	cursor->state.screen_height = state->window_height;
+	cursor->hot_x = (int32_t) hx;
+	cursor->hot_y = (int32_t) hy;
+	// Grab a copy of the dispman display
+	cursor->display = state->dmx_display;
+
+	// Copy image data
+	cursor->image = calloc(1, pitch * height);
+	if (cursor->image == NULL) {
+		free(cursor);
+		return NULL;
+	}
+
+	cursor->resource = vc_dispmanx_resource_create(VC_IMAGE_RGBA32, w, h, &cursor->image_p);
+	if (cursor->resource == 0) {
+		free(cursor->image);
+		free(cursor);
+		return NULL;
+	}
+
+	unsigned int row;
+	int incr = w;
+	if (upsidedown) {
+		data += w * h - 1;
+		incr = -incr;
+	}
+	for (row = 0; row < h; row++) {
+		memcpy(cursor->image + row * pitch, data, w * 4);
+		data += incr;
+	}
+
+	vc_dispmanx_rect_set(&dst_rect, 0, 0, w, h);
+	vc_dispmanx_resource_write_data(cursor->resource, VC_IMAGE_RGBA32, pitch, cursor->image, &dst_rect);
+	cursor->state.element = 0;
+	return cursor;
+}
+
+// Show the cursor on screen
+void showCursor(cursor_t * cursor) {
+	if (cursor && !cursor->state.element) {
+		VC_RECT_T src_rect, dst_rect;
+		DISPMANX_UPDATE_HANDLE_T update = vc_dispmanx_update_start(0);
+		setWindowParams(&cursor->state, cursor->state.window_x, cursor->state.window_y, &src_rect, &dst_rect);
+		cursor->state.element = vc_dispmanx_element_add(update, cursor->display,
+								1, &dst_rect,
+								cursor->resource,
+								&src_rect, DISPMANX_PROTECTION_NONE, NULL, NULL, VC_IMAGE_ROT0);
+		vc_dispmanx_update_submit_sync(update);
+	}
+}
+
+// Hide the cursor
+void hideCursor(cursor_t * cursor) {
+	if (cursor && cursor->state.element) {
+		DISPMANX_UPDATE_HANDLE_T update = vc_dispmanx_update_start(0);
+		vc_dispmanx_element_remove(update, cursor->state.element);
+		vc_dispmanx_update_submit_sync(update);
+		cursor->state.element = 0;
+	}
+}
+
+// Move the cursor
+void moveCursor(STATE_T * state, cursor_t * cursor, int32_t x, int32_t y) {
+	if (cursor) {
+		if (x < 0)
+			x = 0;
+		if (x >= (int32_t) state->window_width)
+			x = (int32_t) state->window_width - 1;
+		if (y < 0)
+			y = 0;
+		if (y >= (int32_t) state->window_height)
+			y = (int32_t) state->window_height - 1;
+		VC_RECT_T src_rect, dst_rect;
+		setWindowParams(&cursor->state, x - cursor->hot_x, y - cursor->hot_y, &src_rect, &dst_rect);
+		dst_rect.x += state->window_x;
+		dst_rect.y += state->window_y;
+		if (cursor->state.element) {
+			DISPMANX_UPDATE_HANDLE_T update = vc_dispmanx_update_start(0);
+			vc_dispmanx_element_change_attributes(update,
+							      cursor->state.element,
+							      0, 0, 0, &dst_rect, &src_rect, 0, DISPMANX_NO_ROTATE);
+			vc_dispmanx_update_submit_sync(update);
+		}
+	}
+}
+
+// Delete a cursor
+void deleteCursor(cursor_t * cursor) {
+	if (cursor) {
+		if (cursor->state.element) {
+			DISPMANX_UPDATE_HANDLE_T update;
+			update = vc_dispmanx_update_start(0);
+			vc_dispmanx_element_remove(update, cursor->state.element);
+			vc_dispmanx_update_submit_sync(update);
+		}
+		vc_dispmanx_resource_delete(cursor->resource);
+		free(cursor->image);
+		free(cursor);
+	}
 }
