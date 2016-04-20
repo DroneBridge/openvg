@@ -38,9 +38,9 @@
 
 int main() {
 	int width, height;
-        initWindowSize(100, 100, 1720, 880);
+        InitWindowSize(100, 100, 1720, 880);
         
-        if (!init(&width, &height))
+        if (!InitShapes(&width, &height))
                 return 1;
         
 	Start(width, height);
@@ -48,7 +48,7 @@ int main() {
         Fill(44, 77, 232, 1);
         
         int32_t desert_w, desert_h, cursor_w, cursor_h;
-        VGImage desert = createImageFromJpeg("desert1.jpg");
+        VGImage desert = CreateImageFromJpeg("desert1.jpg");
         if (desert == VG_INVALID_HANDLE)
                 fputs("Failed to load desert1.jpg image.\n", stderr);
         else {
@@ -88,7 +88,7 @@ int main() {
                 ShowCursor();
 
                 int count;
-                for (count = 0; count < 2000; count++) {
+                for (count = 0; count < 200; count++) {
                         MoveCursor(count % width, count % height);
                         WindowClear();
                         Circle(width / 2, 0, width); // Background
@@ -126,6 +126,6 @@ int main() {
         // that and are exiting anyway.
         vgDestroyImage(cursor);
         vgDestroyImage(desert);
-	finish();
+	FinishShapes();
 	return 0;
 }

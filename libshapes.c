@@ -31,6 +31,8 @@ static int32_t init_x = 0;	// Initial window position and size
 static int32_t init_y = 0;
 static uint32_t init_w = 0;
 static uint32_t init_h = 0;
+static bool check_errors = true;
+static uint32_t vg_error_code = VG_NO_ERROR;
 
 // hold the current glyph representation of a string to print. Memory
 // is allocated by the stringToGlyph function, will grow when a longer
@@ -51,6 +53,9 @@ static VGPath ellipse_path = VG_INVALID_HANDLE;
 static VGPaint fill_paint = VG_INVALID_HANDLE;
 static VGPaint stroke_paint = VG_INVALID_HANDLE;
 
+// Pointer cursor
+static cursor_t *priv_cursor = NULL;
+
 //
 // Terminal settings
 //
@@ -60,22 +65,34 @@ static struct termios new_term_attr;
 static struct termios orig_term_attr;
 
 // saveterm saves the current terminal settings
-void saveterm() {
+void SaveTerm() {
 	tcgetattr(fileno(stdin), &orig_term_attr);
+}
+// Deprecated
+void saveterm() {
+        SaveTerm();
 }
 
 // rawterm sets the terminal to raw mode
-void rawterm() {
+void RawTerm() {
 	memcpy(&new_term_attr, &orig_term_attr, sizeof(struct termios));
 	new_term_attr.c_lflag &= ~(ICANON | ECHO | ECHOE | ECHOK | ECHONL | ECHOPRT | ECHOKE | ICRNL);
 	new_term_attr.c_cc[VTIME] = 0;
 	new_term_attr.c_cc[VMIN] = 0;
 	tcsetattr(fileno(stdin), TCSANOW, &new_term_attr);
 }
-
+// Deprecated
+void rawterm() {
+        RawTerm();
+}
+                
 // restore resets the terminal to the previously saved setting
-void restoreterm() {
+void RestoreTerm() {
 	tcsetattr(fileno(stdin), TCSANOW, &orig_term_attr);
+}
+// Deprecated
+void restoreterm() {
+        RestoreTerm();
 }
 
 //
@@ -84,7 +101,7 @@ void restoreterm() {
 
 // loadfont loads font path data
 // derived from http://web.archive.org/web/20070808195131/http://developer.hybrid.fi/font2openvg/renderFont.cpp.txt
-Fontinfo loadfont(const int *Points,
+Fontinfo LoadFont(const int *Points,
 		  const int *PointIndices,
 		  const unsigned char *Instructions,
 		  const int *InstructionIndices, const int *InstructionCounts,
@@ -137,9 +154,18 @@ Fontinfo loadfont(const int *Points,
 	f->Kerning = 0;
 	return f;
 }
+// Deprecated
+Fontinfo loadfont(const int *Points,
+		  const int *PointIndices,
+		  const unsigned char *Instructions,
+		  const int *InstructionIndices, const int *InstructionCounts,
+		  const int *adv, const short *cmap, int ng, int descender, int ascender) {
+        return LoadFont(Points, PointIndices, Instructions, InstructionIndices,
+                        InstructionCounts, adv, cmap, ng, descender, ascender);
+}
 
 // unloadfont frees font path data
-void unloadfont(Fontinfo f) {
+void UnloadFont(Fontinfo f) {
 	if (f) {
 		if (f->face)
 			return UnloadTTF(f);
@@ -150,10 +176,14 @@ void unloadfont(Fontinfo f) {
 
 	}
 }
+// Deprecated
+void unloadfont(Fontinfo f) {
+        UnloadFont(f);
+}
 
 // createImageFromJpeg decompresses a JPEG image to the standard image format
 // source: https://github.com/ileben/ShivaVG/blob/master/examples/test_image.c
-VGImage createImageFromJpeg(const char *filename) {
+VGImage CreateImageFromJpeg(const char *filename) {
 	FILE *infile;
 	struct jpeg_decompress_struct jdc;
 	struct jpeg_error_mgr jerr;
@@ -183,7 +213,7 @@ VGImage createImageFromJpeg(const char *filename) {
 	// Try to open image file
 	infile = fopen(filename, "rb");
 	if (infile == NULL) {
-		printf("Failed opening '%s' for reading!\n", filename);
+                fprintf(stderr, "Failed opening '%s' for reading!\n", filename);
 		return VG_INVALID_HANDLE;
 	}
 	// Setup default error handling
@@ -240,7 +270,9 @@ VGImage createImageFromJpeg(const char *filename) {
 	img = vgCreateImage(rgbaFormat, (VGint) width, (VGint) height, VG_IMAGE_QUALITY_BETTER);
 	if (img != VG_INVALID_HANDLE)
 		vgImageSubData(img, data, (VGint) dstride, rgbaFormat, 0, 0, (VGint) width, (VGint) height);
-
+        else
+                vg_error_code = vgGetError();
+        
 	// Cleanup
 	jpeg_destroy_decompress(&jdc);
 	fclose(infile);
@@ -248,9 +280,13 @@ VGImage createImageFromJpeg(const char *filename) {
 
 	return img;
 }
+// Deprecated
+VGImage createImageFromJpeg(const char *filename) {
+        return CreateImageFromJpeg(filename);
+}
 
 // makeimage makes an image from a raw raster of red, green, blue, alpha values
-void makeimage(VGfloat x, VGfloat y, VGint w, VGint h, VGubyte * data) {
+void MakeImage(VGfloat x, VGfloat y, VGint w, VGint h, VGubyte * data) {
 	VGint dstride = w * 4;
 	VGImageFormat rgbaFormat = VG_sABGR_8888;
 	VGImage img = vgCreateImage(rgbaFormat, w, h, VG_IMAGE_QUALITY_BETTER);
@@ -259,19 +295,31 @@ void makeimage(VGfloat x, VGfloat y, VGint w, VGint h, VGubyte * data) {
 		vgSetPixels((VGint) x, (VGint) y, img, 0, 0, w, h);
 		vgDestroyImage(img);
 	}
+        else
+                vg_error_code = vgGetError();
+}
+// Deprecated
+void makeimage(VGfloat x, VGfloat y, VGint w, VGint h, VGubyte * data) {
+        MakeImage(x, y, w, h, data);
 }
 
 // Image places an image at the specifed location
 void Image(VGfloat x, VGfloat y, VGint w, VGint h, const char *filename) {
-	VGImage img = createImageFromJpeg(filename);
+	VGImage img = CreateImageFromJpeg(filename);
 	if (img != VG_INVALID_HANDLE) {
 		vgSetPixels((VGint) x, (VGint) y, img, 0, 0, w, h);
 		vgDestroyImage(img);
 	}
+        else
+                vg_error_code = vgGetError();
+}
+// Deprecated
+void image(VGfloat x, VGfloat y, VGint w, VGint h, const char *filename) {
+        Image(x, y, w, h, filename);
 }
 
 // dumpscreen writes the raster
-void dumpscreen(VGuint w, VGuint h, FILE * fp) {
+static void dumpscreen(VGuint w, VGuint h, FILE * fp) {
 	if (w > state->window_width)
 		w = state->window_width;
 	if (h > state->window_height)
@@ -289,25 +337,30 @@ Fontinfo SansTypeface, SerifTypeface, MonoTypeface;
 // initWindowSize requests a specific window size & position, if not called
 // then init() will open a full screen window.
 // Done this way to preserve the original init() behaviour.
-void initWindowSize(int32_t x, int32_t y, int32_t w, int32_t h) {
+void InitWindowSize(int32_t x, int32_t y, int32_t w, int32_t h) {
 	init_x = x;
 	init_y = y;
 	init_w = w < 0 ? 0 : (uint32_t) w;
 	init_h = h < 0 ? 0 : (uint32_t) h;
 }
+// Deprecated
+void initWindowSize(int32_t x, int32_t y, int32_t w, int32_t h) {
+        InitWindowSize(x, y, w, h);
+}
 
 // init sets the system to its initial state, returns false if an
 // error occured.
-bool init(int32_t * w, int32_t * h) {
+bool InitShapes(int32_t * w, int32_t * h) {
 	int err_state = 0;
-	bcm_host_init();
+        check_errors = true;
+        bcm_host_init();
 	memset(state, 0, sizeof(*state));
 	state->window_x = init_x;
 	state->window_y = init_y;
 	state->window_width = init_w;
 	state->window_height = init_h;
 	oglinit(state);
-	SansTypeface = loadfont(DejaVuSans_glyphPoints,
+	SansTypeface = LoadFont(DejaVuSans_glyphPoints,
 				DejaVuSans_glyphPointIndices,
 				DejaVuSans_glyphInstructions,
 				DejaVuSans_glyphInstructionIndices,
@@ -319,7 +372,7 @@ bool init(int32_t * w, int32_t * h) {
 		SansTypeface->Name = "DejaVu Sans";
 		SansTypeface->Style = "Book";
 	}
-	SerifTypeface = loadfont(DejaVuSerif_glyphPoints,
+	SerifTypeface = LoadFont(DejaVuSerif_glyphPoints,
 				 DejaVuSerif_glyphPointIndices,
 				 DejaVuSerif_glyphInstructions,
 				 DejaVuSerif_glyphInstructionIndices,
@@ -331,7 +384,7 @@ bool init(int32_t * w, int32_t * h) {
 		SerifTypeface->Name = "DejaVu Serif";
 		SerifTypeface->Style = "Book";
 	}
-	MonoTypeface = loadfont(DejaVuSansMono_glyphPoints,
+	MonoTypeface = LoadFont(DejaVuSansMono_glyphPoints,
 				DejaVuSansMono_glyphPointIndices,
 				DejaVuSansMono_glyphInstructions,
 				DejaVuSansMono_glyphInstructionIndices,
@@ -413,23 +466,48 @@ bool init(int32_t * w, int32_t * h) {
 		vguEllipse(ellipse_path, 0, 0, 1, 1);
 
 	if (err_state) {
-		fprintf(stderr, "Failed initialising libshapes paths.\n");
-		finish();
+		fputs("Failed initialising libshapes paths.\n", stderr);
+		FinishShapes();
 		return false;
 	}
 
-	VGErrorCode vgerror = vgGetError();
-	if (vgerror != VG_NO_ERROR) {
-		fprintf(stderr, "OpenVG gave error %x whilst initilising libshapes.\n", vgerror);
-		finish();
+	vg_error_code = vgGetError();
+	if (vg_error_code != VG_NO_ERROR) {
+		fprintf(stderr, "OpenVG gave error %x whilst initilising libshapes.\n", vg_error_code);
+		FinishShapes();
 		return false;
 	}
 	return true;
 }
+// Deprecated
+bool init(int32_t * w, int32_t * h) {
+        return InitShapes(w, h);
+}
+
+// Turn on/off checking and reporting of OpenVG errors
+// For functions that already know an OpenVG error happened they will
+// always set vg_error_code regardless of this setting.
+void EnableOpenVGErrorCheck(bool check)
+{
+        check_errors = check;
+}
+
+// Check status of OpenVG errors, if none had been reported then check
+uint32_t CheckErrorStatus()
+{
+        uint32_t err = vg_error_code;
+        // If no current error then check if one has happened
+        if (err == VG_NO_ERROR)
+                err = vgGetError();
+        // Reset the state as the error has now been reported
+        vg_error_code = VG_NO_ERROR;
+        return err;
+}
 
 // finish cleans up
-void finish() {
-	eglSwapBuffers(state->display, state->surface);
+void FinishShapes() {
+        DeleteCursor();
+        eglSwapBuffers(state->display, state->surface);
 	vgDestroyPath(ellipse_path);
 	vgDestroyPath(roundrect_path);
 	vgDestroyPath(line_path);
@@ -439,17 +517,21 @@ void finish() {
 	vgDestroyPaint(stroke_paint);
 	vgDestroyPaint(fill_paint);
 	vgDestroyPath(common_path);
-	unloadfont(SansTypeface);
+	UnloadFont(SansTypeface);
 	SansTypeface = NULL;
-	unloadfont(SerifTypeface);
+	UnloadFont(SerifTypeface);
 	SerifTypeface = NULL;
-	unloadfont(MonoTypeface);
+	UnloadFont(MonoTypeface);
 	MonoTypeface = NULL;
 	font_CloseFontSystem();
 	eglMakeCurrent(state->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 	eglDestroySurface(state->display, state->surface);
 	eglDestroyContext(state->display, state->context);
 	eglTerminate(state->display);
+}
+// Deprecated
+void finish() {
+        FinishShapes();
 }
 
 //
@@ -481,17 +563,25 @@ void Scale(VGfloat x, VGfloat y) {
 //
 
 // setfill sets the fill color
-void setfill(VGfloat color[4]) {
+void SetFill(VGfloat color[4]) {
 	vgSetParameteri(fill_paint, VG_PAINT_TYPE, VG_PAINT_TYPE_COLOR);
 	vgSetParameterfv(fill_paint, VG_PAINT_COLOR, 4, color);
 	vgSetPaint(fill_paint, VG_FILL_PATH);
 }
+// Deprecated
+void setfill(VGfloat color[4]) {
+        SetFill(color);
+}
 
 // setstroke sets the stroke color
-void setstroke(VGfloat color[4]) {
+void SetStroke(VGfloat color[4]) {
 	vgSetParameteri(stroke_paint, VG_PAINT_TYPE, VG_PAINT_TYPE_COLOR);
 	vgSetParameterfv(stroke_paint, VG_PAINT_COLOR, 4, color);
 	vgSetPaint(stroke_paint, VG_STROKE_PATH);
+}
+// Deprecated
+void setstroke(VGfloat color[4]) {
+        SetStroke(color);
 }
 
 // StrokeWidth sets the stroke width
@@ -535,18 +625,18 @@ void RGB(VGuint r, VGuint g, VGuint b, VGfloat color[4]) {
 void Stroke(VGuint r, VGuint g, VGuint b, VGfloat a) {
 	VGfloat color[4];
 	RGBA(r, g, b, a, color);
-	setstroke(color);
+	SetStroke(color);
 }
 
 // Fill sets the fillcolor, defined as a RGBA quad.
 void Fill(VGuint r, VGuint g, VGuint b, VGfloat a) {
 	VGfloat color[4];
 	RGBA(r, g, b, a, color);
-	setfill(color);
+	SetFill(color);
 }
 
 // setstops sets color stops for gradients
-void setstop(VGPaint paint, VGfloat * stops, VGint n) {
+static void setstop(VGPaint paint, VGfloat * stops, VGint n) {
 	VGboolean multmode = VG_FALSE;
 	VGColorRampSpreadMode spreadmode = VG_COLOR_RAMP_SPREAD_REPEAT;
 	vgSetParameteri(paint, VG_PAINT_COLOR_RAMP_SPREAD_MODE, spreadmode);
@@ -591,7 +681,7 @@ void ClipEnd() {
 //   Cache: If we are passed glyph_string as the string then it's
 //   because TextMid & TextEnd have already called here when
 //   calculating the width and we don't want to parse it again.
-unsigned int stringToGlyphs(const char *s, Fontinfo f) {
+static unsigned int stringToGlyphs(const char *s, Fontinfo f) {
 	static unsigned int glyph_length = 0;	// number of valid glyphs in string
 	static unsigned int glyph_string_len = 0;	// size of allocated buffer
 	if (s == (char *)glyph_string) {
@@ -760,7 +850,7 @@ void Qbezier(VGfloat sx, VGfloat sy, VGfloat cx, VGfloat cy, VGfloat ex, VGfloat
 }
 
 // interleave interleaves arrays of x, y into a single array
-void interleave(VGfloat * x, VGfloat * y, VGint n, VGfloat * points) {
+static void interleave(VGfloat * x, VGfloat * y, VGint n, VGfloat * points) {
 	while (n--) {
 		*points++ = *x++;
 		*points++ = *y++;
@@ -768,7 +858,7 @@ void interleave(VGfloat * x, VGfloat * y, VGint n, VGfloat * points) {
 }
 
 // poly makes either a polygon or polyline
-void poly(VGfloat * x, VGfloat * y, VGint n, VGbitfield flag) {
+static void poly(VGfloat * x, VGfloat * y, VGint n, VGbitfield flag) {
 	VGfloat points[n * 2];
 	VGPath path = newpath();
 	interleave(x, y, n, points);
@@ -844,35 +934,41 @@ void Start(VGint width, VGint height) {
 	vgSetfv(VG_CLEAR_COLOR, 4, color);
 	vgClear(0, 0, width, height);
 	color[0] = color[1] = color[2] = 0.0f;
-	setfill(color);
-	setstroke(color);
+	SetFill(color);
+	SetStroke(color);
 	StrokeWidth(0);
 	vgLoadIdentity();
 }
 
-// End checks for errors, and renders to the display, returns false if
-// an error was detected.
+// End checks for errors (if enabled) and renders to the display,
+// returns false if an error was detected. 
 bool End() {
 	bool success = true;
-	VGuint error = vgGetError();
-	if (error != VG_NO_ERROR) {
-		font_error(error, "***End()***");
-		success = false;
-	}
+        if (check_errors) {
+                vg_error_code = vgGetError();
+                if (vg_error_code != VG_NO_ERROR) {
+                        font_error(vg_error_code, "***End()***");
+                        success = false;
+                }
+        }
+        
 	eglSwapBuffers(state->display, state->surface);
-	if (eglGetError() != EGL_SUCCESS)
+	if (check_errors && eglGetError() != EGL_SUCCESS)
 		success = false;
 	return success;
 }
 
-// SaveEnd dumps the raster before rendering to the display, returns false if an error was detected.
+// SaveEnd dumps the raster before rendering to the display, returns
+// false if an error was detected (if enabled).
 bool SaveEnd(const char *filename) {
 	bool success = true;
-	VGuint error = vgGetError();
-	if (error != VG_NO_ERROR) {
-		font_error(error, "***End()***");
-		success = false;
-	}
+	if (check_errors) {
+                vg_error_code = vgGetError();
+                if (vg_error_code != VG_NO_ERROR) {
+                        font_error(vg_error_code, "***End()***");
+                        success = false;
+                }
+        }
 	FILE *fp;
 	if (strlen(filename) == 0) {
 		dumpscreen(state->screen_width, state->screen_height, stdout);
@@ -884,7 +980,7 @@ bool SaveEnd(const char *filename) {
 		}
 	}
 	eglSwapBuffers(state->display, state->surface);
-	if (eglGetError() != EGL_SUCCESS)
+	if (check_errors && eglGetError() != EGL_SUCCESS)
 		success = false;
 	return success;
 }
@@ -1200,32 +1296,34 @@ bool WindowSaveAsPNG(const char *filename, VGint x, VGint y, VGint w, VGint h, i
 		int width = w;
 		int height = h;
 		char *image = grabWindow(x, y, &width, &height);
-		if (image != NULL)
-			file = fopen(filename, "wb");
-		if (file) {
-			if (!setjmp(png_jmpbuf(png_ptr))) {
-				png_init_io(png_ptr, file);
-				png_set_IHDR(png_ptr, info_ptr, width, height,
-					     8, PNG_COLOR_TYPE_RGB,
-					     PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
-				png_set_compression_level(png_ptr, zlib_level);
-				png_write_info(png_ptr, info_ptr);
-				png_set_packing(png_ptr);
-				png_set_filler(png_ptr, 0, PNG_FILLER_AFTER);
-				png_bytep row_pointer;
-				row_pointer = (png_bytep) image + width * 4 * height;
-				VGint row;
-				for (row = height; row; row--) {
-					row_pointer -= width * 4;
-					png_write_rows(png_ptr, &row_pointer, 1);
-				}
-				png_write_end(png_ptr, info_ptr);
-				success = true;
-			} else
-				success = false;
-			fclose(file);
-		}
-	}
+		if (image != NULL) {
+                        file = fopen(filename, "wb");
+                        if (file) {
+                                if (!setjmp(png_jmpbuf(png_ptr))) {
+                                        png_init_io(png_ptr, file);
+                                        png_set_IHDR(png_ptr, info_ptr, width, height,
+                                                     8, PNG_COLOR_TYPE_RGB,
+                                                     PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
+                                        png_set_compression_level(png_ptr, zlib_level);
+                                        png_write_info(png_ptr, info_ptr);
+                                        png_set_packing(png_ptr);
+                                        png_set_filler(png_ptr, 0, PNG_FILLER_AFTER);
+                                        png_bytep row_pointer;
+                                        row_pointer = (png_bytep) image + width * 4 * height;
+                                        VGint row;
+                                        for (row = height; row; row--) {
+                                                row_pointer -= width * 4;
+                                                png_write_rows(png_ptr, &row_pointer, 1);
+                                        }
+                                        png_write_end(png_ptr, info_ptr);
+                                        success = true;
+                                } else
+                                        success = false;
+                                fclose(file);
+                        }
+                        free(image);
+                }
+        }
 	png_destroy_write_struct(&png_ptr, &info_ptr);
 	return success;
 }
@@ -1300,7 +1398,9 @@ VGImage LoadImageFromPNG(const char *filename, VGint * w, VGint * h) {
 			*w = (VGint) width;
 			*h = (VGint) height;
 		}
-	}
+                else
+                        vg_error_code = vgGetError();
+        }
 	if (row_ptrs)
 		free(row_ptrs);
 	if (buffer)
@@ -1331,13 +1431,18 @@ void DrawImageAt(VGfloat x, VGfloat y, VGImage image) {
 
 // DrawImageAtFit draws the image scaled to fit in requested size
 void DrawImageAtFit(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGImage image) {
+	VGint iw = vgGetParameteri(image, VG_IMAGE_WIDTH);
+	VGint ih = vgGetParameteri(image, VG_IMAGE_HEIGHT);
+        if (iw == 0 || ih == 0) {
+                vg_error_code = vgGetError();
+                return;
+        }
+        
 	VGint mm = vgGeti(VG_MATRIX_MODE);
 	if (mm != VG_MATRIX_IMAGE_USER_TO_SURFACE)
 		vgSeti(VG_MATRIX_MODE, VG_MATRIX_IMAGE_USER_TO_SURFACE);
 	VGfloat matrix[9];
 	vgGetMatrix(matrix);
-	VGint iw = vgGetParameteri(image, VG_IMAGE_WIDTH);
-	VGint ih = vgGetParameteri(image, VG_IMAGE_HEIGHT);
 	VGfloat sx = w / (VGfloat) iw;
 	VGfloat sy = h / (VGfloat) ih;
 	vgTranslate(x, y);
@@ -1365,28 +1470,34 @@ void CopyMatrixPathToImage() {
 		vgSeti(VG_MATRIX_MODE, mm);
 }
 
-// Pointer cursor
-static cursor_t *priv_cursor;
-
+// Create a cursor image above the OpenVG layer.
 bool CreateCursor(uint32_t * data, uint32_t width, uint32_t height, uint32_t hot_x, uint32_t hot_y) {
-	if (!state->dmx_display)
+	if (!state->dmx_display || priv_cursor != NULL)
 		return false;
 	priv_cursor = createCursor(state, data, width, height, hot_x, hot_y, false);
 	return (priv_cursor != NULL);
 }
 
+// Same as CreateCursor but get the image data directly from an
+// existing VGImage.
 bool CreateCursorFromVGImage(VGImage img, uint32_t hot_x, uint32_t hot_y) {
-	if (!state->dmx_display)
+	if (!state->dmx_display || priv_cursor != NULL)
 		return false;
 	VGint w = vgGetParameteri(img, VG_IMAGE_WIDTH);
 	VGint h = vgGetParameteri(img, VG_IMAGE_HEIGHT);
-	uint32_t *data = malloc(w * 4 * h);
+        if (w == 0 || h == 0) {
+                vg_error_code = vgGetError();
+                return false;
+        }
+        
+        uint32_t *data = malloc(w * 4 * h);
 	if (data == NULL)
 		return false;
 
 	vgGetImageSubData(img, data, w * 4, VG_sARGB_8888, 0, 0, w, h);
 	priv_cursor = createCursor(state, data, w, h, hot_x, hot_y, true);
-	return (priv_cursor != NULL);
+        free(data);
+        return (priv_cursor != NULL);
 }
 
 void ShowCursor() {
@@ -1402,5 +1513,8 @@ void MoveCursor(int32_t x, int32_t y) {
 }
 
 void DeleteCursor() {
-	deleteCursor(priv_cursor);
+        if (priv_cursor) {
+                deleteCursor(priv_cursor);
+                priv_cursor = NULL;
+        }
 }

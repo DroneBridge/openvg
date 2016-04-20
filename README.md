@@ -71,14 +71,20 @@ WindowPosition moves the window to given position
 
 ### Setup and shutdown
 
-	void init(int *w, int *h)
+	void InitShapes(int *w, int *h)
 Initialize the graphics: width and height of the canvas are returned.  This should begin every program.
 
-	void initWindowSize(int x, int y, unsigned int w, unsigned int h)
+	void InitWindowSize(int x, int y, unsigned int w, unsigned int h)
 Initialize with specific dimensions
 
-	void finish() 
+	void FinishShapes() 
 Shutdown the graphics. This should end every program.
+
+	void EnableOpenVGErrorChecks(bool check)
+Enables or disables checking of OpenVG errors when the error status is unknown.
+
+	uint32_t CheckErrorStatus()
+Returns the last known OpenVG error status (and checks current state if enabled).
 
 	void Start(int width, int height)
 Begin the picture, clear the screen with a default white, set the stroke and fill to black.
@@ -90,12 +96,53 @@ End the picture, rendering to the screen.
 End the picture, rendering to the screen, save the raster to the named file as 4-byte RGBA words, with a stride of
 width*4 bytes. The program raw2png converts the "raw" raster to png.
 
-	void saveterm(), restoreterm(), rawterm()
+	bool WindowSaveAsPNG(const char *filename, VGint x, VGint y, VGint w, VGint h, int zlib_level)
+Saves an area of the screen the sized of (w,h) from (x,y) to the named file as a png. zlib_level is the compression from 0=none to 9=best. Returns false if there was an error.
+
+        VGImage LoadImageFromPNG(const char *filename, VGint *w, VGint *h)
+Loads a png into a VGImage, w and h are pointers where the width and height of the image will be stored.
+
+        DrawImageAt(VGfloat x, VGfloat y, VGImage image)
+Draws the image at the specified location.
+
+        DrawImageAtFit(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGImage image)
+Draws the image scaled to fit the given size at the given location.
+
+        void CopyMatrixPathToImage()
+Copies the Path transformation matrix to the Image transformation matrix.
+
+	void SaveTerm(), RestoreTerm(), RawTerm()
 Terminal settings, save current settings, restore settings, put the terminal in raw mode.
+
+### Hardware cursor support
+A hardware cursor image has been implemented. It will appear alpha-blended over the screen but is not part of the screen so won't appear in screen-grabs or affect what is drawn under it.
+The cursor, when created will not be initially visible. This is so you can position it first.
+There can be only one cursor at a time. If you want to change the image then you need to DeleteCursor() first and create a new one.
+
+        bool CreateCursor(uint32_t *data, uint32_t width, uint32_t height, uint32_t hot_x, uint32_t hot_y)
+Creates a hardware cursor from raw RGBA data. hot_x,hot_y specifies the location of the point in the image that is used for the cursor's location.
+Returns false if a cursor already exists or there is an error.
+*NOTE* The cursor's origin is top-left going down rather than OpenVG's bottom-left going up.
+
+        bool CreateCursorFromVGImage(VGImage image, uint32_t hot_x, uint32_t hot_y)
+Creates a cursor as CreateCursor() but takes the image from a VGImage. The difference in origin is taken into account.
+
+	void ShowCursor()
+Makes the cursor visible.
+
+        void HideCursor()
+Makes the cursor invisible.
+
+        void MoveCursor(int32_t x, int32_t y)
+Places the cursor at the specified coordinte.
+*NOTE* the coordinte is specified in pixels with (0,0) being top-left of the window.
+
+        void DeleteCursor()
+Deletes the cursor.
 
 ### Attributes
 
-	void setfill(float color[4])
+	void SetFill(float color[4])
 Set the fill color
 
 	void Background(unsigned int r, unsigned int g, unsigned int b)
