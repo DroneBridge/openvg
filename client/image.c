@@ -56,10 +56,12 @@ int main() {
                 desert_h = vgGetParameteri(desert, VG_IMAGE_HEIGHT);
         }
         
-        VGImage cursor = LoadImageFromPNG("Select.png", &cursor_w, &cursor_h);
+        VGImage cursor = CreateImageFromPNG("Select.png");
         if (cursor == VG_INVALID_HANDLE)
                 fputs("Failed to load Select.png cursor.\n", stderr);
 
+        cursor_w = vgGetParameteri(cursor, VG_IMAGE_WIDTH);
+        cursor_h = vgGetParameteri(cursor, VG_IMAGE_HEIGHT);
         const VGfloat hotspot_x = -3.0f, hotspot_y = -(cursor_h-3.0f);
         if (desert && cursor) {
                 VGfloat desertw = (VGfloat)desert_w;

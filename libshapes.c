@@ -68,9 +68,10 @@ static struct termios orig_term_attr;
 void SaveTerm() {
 	tcgetattr(fileno(stdin), &orig_term_attr);
 }
+
 // Deprecated
 void saveterm() {
-        SaveTerm();
+	SaveTerm();
 }
 
 // rawterm sets the terminal to raw mode
@@ -81,18 +82,20 @@ void RawTerm() {
 	new_term_attr.c_cc[VMIN] = 0;
 	tcsetattr(fileno(stdin), TCSANOW, &new_term_attr);
 }
+
 // Deprecated
 void rawterm() {
-        RawTerm();
+	RawTerm();
 }
-                
+
 // restore resets the terminal to the previously saved setting
 void RestoreTerm() {
 	tcsetattr(fileno(stdin), TCSANOW, &orig_term_attr);
 }
+
 // Deprecated
 void restoreterm() {
-        RestoreTerm();
+	RestoreTerm();
 }
 
 //
@@ -154,14 +157,15 @@ Fontinfo LoadFont(const int *Points,
 	f->Kerning = 0;
 	return f;
 }
+
 // Deprecated
 Fontinfo loadfont(const int *Points,
 		  const int *PointIndices,
 		  const unsigned char *Instructions,
 		  const int *InstructionIndices, const int *InstructionCounts,
 		  const int *adv, const short *cmap, int ng, int descender, int ascender) {
-        return LoadFont(Points, PointIndices, Instructions, InstructionIndices,
-                        InstructionCounts, adv, cmap, ng, descender, ascender);
+	return LoadFont(Points, PointIndices, Instructions, InstructionIndices,
+			InstructionCounts, adv, cmap, ng, descender, ascender);
 }
 
 // unloadfont frees font path data
@@ -176,9 +180,10 @@ void UnloadFont(Fontinfo f) {
 
 	}
 }
+
 // Deprecated
 void unloadfont(Fontinfo f) {
-        UnloadFont(f);
+	UnloadFont(f);
 }
 
 // createImageFromJpeg decompresses a JPEG image to the standard image format
@@ -213,7 +218,7 @@ VGImage CreateImageFromJpeg(const char *filename) {
 	// Try to open image file
 	infile = fopen(filename, "rb");
 	if (infile == NULL) {
-                fprintf(stderr, "Failed opening '%s' for reading!\n", filename);
+		fprintf(stderr, "Failed opening '%s' for reading!\n", filename);
 		return VG_INVALID_HANDLE;
 	}
 	// Setup default error handling
@@ -270,9 +275,9 @@ VGImage CreateImageFromJpeg(const char *filename) {
 	img = vgCreateImage(rgbaFormat, (VGint) width, (VGint) height, VG_IMAGE_QUALITY_BETTER);
 	if (img != VG_INVALID_HANDLE)
 		vgImageSubData(img, data, (VGint) dstride, rgbaFormat, 0, 0, (VGint) width, (VGint) height);
-        else
-                vg_error_code = vgGetError();
-        
+	else
+		vg_error_code = vgGetError();
+
 	// Cleanup
 	jpeg_destroy_decompress(&jdc);
 	fclose(infile);
@@ -280,9 +285,10 @@ VGImage CreateImageFromJpeg(const char *filename) {
 
 	return img;
 }
+
 // Deprecated
 VGImage createImageFromJpeg(const char *filename) {
-        return CreateImageFromJpeg(filename);
+	return CreateImageFromJpeg(filename);
 }
 
 // makeimage makes an image from a raw raster of red, green, blue, alpha values
@@ -294,13 +300,13 @@ void MakeImage(VGfloat x, VGfloat y, VGint w, VGint h, VGubyte * data) {
 		vgImageSubData(img, (void *)data, dstride, rgbaFormat, 0, 0, w, h);
 		vgSetPixels((VGint) x, (VGint) y, img, 0, 0, w, h);
 		vgDestroyImage(img);
-	}
-        else
-                vg_error_code = vgGetError();
+	} else
+		vg_error_code = vgGetError();
 }
+
 // Deprecated
 void makeimage(VGfloat x, VGfloat y, VGint w, VGint h, VGubyte * data) {
-        MakeImage(x, y, w, h, data);
+	MakeImage(x, y, w, h, data);
 }
 
 // Image places an image at the specifed location
@@ -309,13 +315,13 @@ void Image(VGfloat x, VGfloat y, VGint w, VGint h, const char *filename) {
 	if (img != VG_INVALID_HANDLE) {
 		vgSetPixels((VGint) x, (VGint) y, img, 0, 0, w, h);
 		vgDestroyImage(img);
-	}
-        else
-                vg_error_code = vgGetError();
+	} else
+		vg_error_code = vgGetError();
 }
+
 // Deprecated
 void image(VGfloat x, VGfloat y, VGint w, VGint h, const char *filename) {
-        Image(x, y, w, h, filename);
+	Image(x, y, w, h, filename);
 }
 
 // dumpscreen writes the raster
@@ -343,17 +349,18 @@ void InitWindowSize(int32_t x, int32_t y, int32_t w, int32_t h) {
 	init_w = w < 0 ? 0 : (uint32_t) w;
 	init_h = h < 0 ? 0 : (uint32_t) h;
 }
+
 // Deprecated
 void initWindowSize(int32_t x, int32_t y, int32_t w, int32_t h) {
-        InitWindowSize(x, y, w, h);
+	InitWindowSize(x, y, w, h);
 }
 
 // init sets the system to its initial state, returns false if an
 // error occured.
 bool InitShapes(int32_t * w, int32_t * h) {
 	int err_state = 0;
-        check_errors = true;
-        bcm_host_init();
+	check_errors = false;
+	bcm_host_init();
 	memset(state, 0, sizeof(*state));
 	state->window_x = init_x;
 	state->window_y = init_y;
@@ -479,35 +486,34 @@ bool InitShapes(int32_t * w, int32_t * h) {
 	}
 	return true;
 }
+
 // Deprecated
 bool init(int32_t * w, int32_t * h) {
-        return InitShapes(w, h);
+	return InitShapes(w, h);
 }
 
 // Turn on/off checking and reporting of OpenVG errors
 // For functions that already know an OpenVG error happened they will
 // always set vg_error_code regardless of this setting.
-void EnableOpenVGErrorCheck(bool check)
-{
-        check_errors = check;
+void EnableOpenVGErrorCheck(bool check) {
+	check_errors = check;
 }
 
 // Check status of OpenVG errors, if none had been reported then check
-uint32_t CheckErrorStatus()
-{
-        uint32_t err = vg_error_code;
-        // If no current error then check if one has happened
-        if (err == VG_NO_ERROR)
-                err = vgGetError();
-        // Reset the state as the error has now been reported
-        vg_error_code = VG_NO_ERROR;
-        return err;
+uint32_t CheckErrorStatus() {
+	uint32_t err = vg_error_code;
+	// If no current error then check if one has happened
+	if (err == VG_NO_ERROR)
+		err = vgGetError();
+	// Reset the state as the error has now been reported
+	vg_error_code = VG_NO_ERROR;
+	return err;
 }
 
 // finish cleans up
 void FinishShapes() {
-        DeleteCursor();
-        eglSwapBuffers(state->display, state->surface);
+	DeleteCursor();
+	eglSwapBuffers(state->display, state->surface);
 	vgDestroyPath(ellipse_path);
 	vgDestroyPath(roundrect_path);
 	vgDestroyPath(line_path);
@@ -529,9 +535,10 @@ void FinishShapes() {
 	eglDestroyContext(state->display, state->context);
 	eglTerminate(state->display);
 }
+
 // Deprecated
 void finish() {
-        FinishShapes();
+	FinishShapes();
 }
 
 //
@@ -568,9 +575,10 @@ void SetFill(VGfloat color[4]) {
 	vgSetParameterfv(fill_paint, VG_PAINT_COLOR, 4, color);
 	vgSetPaint(fill_paint, VG_FILL_PATH);
 }
+
 // Deprecated
 void setfill(VGfloat color[4]) {
-        SetFill(color);
+	SetFill(color);
 }
 
 // setstroke sets the stroke color
@@ -579,9 +587,10 @@ void SetStroke(VGfloat color[4]) {
 	vgSetParameterfv(stroke_paint, VG_PAINT_COLOR, 4, color);
 	vgSetPaint(stroke_paint, VG_STROKE_PATH);
 }
+
 // Deprecated
 void setstroke(VGfloat color[4]) {
-        SetStroke(color);
+	SetStroke(color);
 }
 
 // StrokeWidth sets the stroke width
@@ -944,14 +953,14 @@ void Start(VGint width, VGint height) {
 // returns false if an error was detected. 
 bool End() {
 	bool success = true;
-        if (check_errors) {
-                vg_error_code = vgGetError();
-                if (vg_error_code != VG_NO_ERROR) {
-                        font_error(vg_error_code, "***End()***");
-                        success = false;
-                }
-        }
-        
+	if (check_errors) {
+		vg_error_code = vgGetError();
+		if (vg_error_code != VG_NO_ERROR) {
+			font_error(vg_error_code, "***End()***");
+			success = false;
+		}
+	}
+
 	eglSwapBuffers(state->display, state->surface);
 	if (check_errors && eglGetError() != EGL_SUCCESS)
 		success = false;
@@ -963,12 +972,12 @@ bool End() {
 bool SaveEnd(const char *filename) {
 	bool success = true;
 	if (check_errors) {
-                vg_error_code = vgGetError();
-                if (vg_error_code != VG_NO_ERROR) {
-                        font_error(vg_error_code, "***End()***");
-                        success = false;
-                }
-        }
+		vg_error_code = vgGetError();
+		if (vg_error_code != VG_NO_ERROR) {
+			font_error(vg_error_code, "***End()***");
+			success = false;
+		}
+	}
 	FILE *fp;
 	if (strlen(filename) == 0) {
 		dumpscreen(state->screen_width, state->screen_height, stdout);
@@ -1277,7 +1286,7 @@ static char *grabWindow(VGint x, VGint y, VGint * w, VGint * h) {
 	*h = height;
 	char *ScreenBuffer = malloc((size_t) (width * height * 4));
 	if (ScreenBuffer)
-		vgReadPixels(ScreenBuffer, width * 4, VG_sABGR_8888, 0, 0, width, height);
+		vgReadPixels(ScreenBuffer, width * 4, VG_sABGR_8888, x, y, width, height);
 	return ScreenBuffer;
 }
 
@@ -1297,40 +1306,40 @@ bool WindowSaveAsPNG(const char *filename, VGint x, VGint y, VGint w, VGint h, i
 		int height = h;
 		char *image = grabWindow(x, y, &width, &height);
 		if (image != NULL) {
-                        file = fopen(filename, "wb");
-                        if (file) {
-                                if (!setjmp(png_jmpbuf(png_ptr))) {
-                                        png_init_io(png_ptr, file);
-                                        png_set_IHDR(png_ptr, info_ptr, width, height,
-                                                     8, PNG_COLOR_TYPE_RGB,
-                                                     PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
-                                        png_set_compression_level(png_ptr, zlib_level);
-                                        png_write_info(png_ptr, info_ptr);
-                                        png_set_packing(png_ptr);
-                                        png_set_filler(png_ptr, 0, PNG_FILLER_AFTER);
-                                        png_bytep row_pointer;
-                                        row_pointer = (png_bytep) image + width * 4 * height;
-                                        VGint row;
-                                        for (row = height; row; row--) {
-                                                row_pointer -= width * 4;
-                                                png_write_rows(png_ptr, &row_pointer, 1);
-                                        }
-                                        png_write_end(png_ptr, info_ptr);
-                                        success = true;
-                                } else
-                                        success = false;
-                                fclose(file);
-                        }
-                        free(image);
-                }
-        }
+			file = fopen(filename, "wb");
+			if (file) {
+				if (!setjmp(png_jmpbuf(png_ptr))) {
+					png_init_io(png_ptr, file);
+					png_set_IHDR(png_ptr, info_ptr, width, height,
+						     8, PNG_COLOR_TYPE_RGB,
+						     PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
+					png_set_compression_level(png_ptr, zlib_level);
+					png_write_info(png_ptr, info_ptr);
+					png_set_packing(png_ptr);
+					png_set_filler(png_ptr, 0, PNG_FILLER_AFTER);
+					png_bytep row_pointer;
+					row_pointer = (png_bytep) image + width * 4 * height;
+					VGint row;
+					for (row = height; row; row--) {
+						row_pointer -= width * 4;
+						png_write_rows(png_ptr, &row_pointer, 1);
+					}
+					png_write_end(png_ptr, info_ptr);
+					success = true;
+				} else
+					success = false;
+				fclose(file);
+			}
+			free(image);
+		}
+	}
 	png_destroy_write_struct(&png_ptr, &info_ptr);
 	return success;
 }
 
  // Load a PNG from filename into a VGImage, return width & height in
  // pointers. For now we'll use the basic high-level reading.
-VGImage LoadImageFromPNG(const char *filename, VGint * w, VGint * h) {
+VGImage CreateImageFromPNG(const char *filename) {
 	VGImage image = VG_INVALID_HANDLE;
 	FILE *file = fopen(filename, "rb");
 	if (file == NULL)
@@ -1393,14 +1402,11 @@ VGImage LoadImageFromPNG(const char *filename, VGint * w, VGint * h) {
 		png_read_image(png_ptr, row_ptrs);
 		png_read_end(png_ptr, info_ptr);
 		image = vgCreateImage(VG_sABGR_8888, width, height, VG_IMAGE_QUALITY_BETTER);
-		if (image != VG_INVALID_HANDLE) {
+		if (image != VG_INVALID_HANDLE)
 			vgImageSubData(image, buffer, width * 4, VG_sABGR_8888, 0, 0, width, height);
-			*w = (VGint) width;
-			*h = (VGint) height;
-		}
-                else
-                        vg_error_code = vgGetError();
-        }
+		else
+			vg_error_code = vgGetError();
+	}
 	if (row_ptrs)
 		free(row_ptrs);
 	if (buffer)
@@ -1433,11 +1439,11 @@ void DrawImageAt(VGfloat x, VGfloat y, VGImage image) {
 void DrawImageAtFit(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGImage image) {
 	VGint iw = vgGetParameteri(image, VG_IMAGE_WIDTH);
 	VGint ih = vgGetParameteri(image, VG_IMAGE_HEIGHT);
-        if (iw == 0 || ih == 0) {
-                vg_error_code = vgGetError();
-                return;
-        }
-        
+	if (iw == 0 || ih == 0) {
+		vg_error_code = vgGetError();
+		return;
+	}
+
 	VGint mm = vgGeti(VG_MATRIX_MODE);
 	if (mm != VG_MATRIX_IMAGE_USER_TO_SURFACE)
 		vgSeti(VG_MATRIX_MODE, VG_MATRIX_IMAGE_USER_TO_SURFACE);
@@ -1485,19 +1491,19 @@ bool CreateCursorFromVGImage(VGImage img, uint32_t hot_x, uint32_t hot_y) {
 		return false;
 	VGint w = vgGetParameteri(img, VG_IMAGE_WIDTH);
 	VGint h = vgGetParameteri(img, VG_IMAGE_HEIGHT);
-        if (w == 0 || h == 0) {
-                vg_error_code = vgGetError();
-                return false;
-        }
-        
-        uint32_t *data = malloc(w * 4 * h);
+	if (w == 0 || h == 0) {
+		vg_error_code = vgGetError();
+		return false;
+	}
+
+	uint32_t *data = malloc(w * 4 * h);
 	if (data == NULL)
 		return false;
 
 	vgGetImageSubData(img, data, w * 4, VG_sARGB_8888, 0, 0, w, h);
 	priv_cursor = createCursor(state, data, w, h, hot_x, hot_y, true);
-        free(data);
-        return (priv_cursor != NULL);
+	free(data);
+	return (priv_cursor != NULL);
 }
 
 void ShowCursor() {
@@ -1508,13 +1514,19 @@ void HideCursor() {
 	hideCursor(priv_cursor);
 }
 
-void MoveCursor(int32_t x, int32_t y) {
+// Moves cursor to window coordinte (origin top-left)
+void MoveHWCursor(int32_t x, int32_t y) {
 	moveCursor(state, priv_cursor, x, y);
 }
 
+// Moves cursor to OpenVG coordinte (origin bottom-left)
+void MoveCursor(int32_t x, int32_t y) {
+	moveCursor(state, priv_cursor, x, (int32_t)state->window_height - y);
+}
+
 void DeleteCursor() {
-        if (priv_cursor) {
-                deleteCursor(priv_cursor);
-                priv_cursor = NULL;
-        }
+	if (priv_cursor) {
+		deleteCursor(priv_cursor);
+		priv_cursor = NULL;
+	}
 }

@@ -21,10 +21,8 @@ typedef struct {
 
 typedef struct cursor_t {
     STATE_T state;
-    char *image;
     DISPMANX_RESOURCE_HANDLE_T resource;
     DISPMANX_DISPLAY_HANDLE_T display;
-    uint32_t image_p;
     int32_t hot_x;
     int32_t hot_y;
 } cursor_t;

@@ -193,18 +193,14 @@ static inline int align_up(int x, int y) {
 
 // Create a cursor
 cursor_t *createCursor(STATE_T * state, const uint32_t * data, uint32_t w, uint32_t h, uint32_t hx, uint32_t hy, bool upsidedown) {
-	cursor_t *cursor;
-	VC_RECT_T dst_rect;
-	int32_t pitch, height;
+	if (w == 0 || w > state->screen_width || h == 0 || h > state->screen_height || hx >= w || hy >= h)
+		return NULL;
+	int32_t pitch = align_up(w * 4, 32);
+	// dispman doesn't seem to like it if pitch is less than 128
+	if (pitch < 128)
+		pitch = 128;
 
-	if (w == 0 || w > state->screen_width || h == 0 || h > state->screen_height)
-		return NULL;
-	// Hotspot has to be within the image.
-	if (hx >= w || hy >= h)
-		return NULL;
-	pitch = align_up(w * 4, 32);
-	height = align_up(h, 16);
-	cursor = calloc(1, sizeof *cursor);
+	cursor_t *cursor = calloc(1, sizeof *cursor);
 	if (cursor == NULL)
 		return NULL;
 
@@ -219,32 +215,34 @@ cursor_t *createCursor(STATE_T * state, const uint32_t * data, uint32_t w, uint3
 	cursor->display = state->dmx_display;
 
 	// Copy image data
-	cursor->image = calloc(1, pitch * height);
-	if (cursor->image == NULL) {
+	char *image = calloc(1, pitch * h);
+	if (image == NULL) {
 		free(cursor);
 		return NULL;
 	}
 
-	cursor->resource = vc_dispmanx_resource_create(VC_IMAGE_RGBA32, w, h, &cursor->image_p);
+	uint32_t img_p;
+	cursor->resource = vc_dispmanx_resource_create(VC_IMAGE_RGBA32, w, h, &img_p);
 	if (cursor->resource == 0) {
-		free(cursor->image);
+		free(image);
 		free(cursor);
 		return NULL;
 	}
 
 	unsigned int row;
-	int incr = w;
+	int incr = (int32_t) w;
 	if (upsidedown) {
-		data += w * h - 1;
+		data += w * (h - 1);
 		incr = -incr;
 	}
 	for (row = 0; row < h; row++) {
-		memcpy(cursor->image + row * pitch, data, w * 4);
+		memcpy(image + (row * pitch), data, w * 4);
 		data += incr;
 	}
 
-	vc_dispmanx_rect_set(&dst_rect, 0, 0, w, h);
-	vc_dispmanx_resource_write_data(cursor->resource, VC_IMAGE_RGBA32, pitch, cursor->image, &dst_rect);
+	VC_RECT_T dst_rect = { 0, 0, w, h };
+	vc_dispmanx_resource_write_data(cursor->resource, VC_IMAGE_RGBA32, pitch, image, &dst_rect);
+	free(image);
 	cursor->state.element = 0;
 	return cursor;
 }
@@ -308,7 +306,6 @@ void deleteCursor(cursor_t * cursor) {
 			vc_dispmanx_update_submit_sync(update);
 		}
 		vc_dispmanx_resource_delete(cursor->resource);
-		free(cursor->image);
 		free(cursor);
 	}
 }
