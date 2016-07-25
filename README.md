@@ -226,6 +226,11 @@ Draw an elliptical arc centered at (x, y), with width and height at (w, h).  Sta
 	void ArcOutline(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat sa, VGfloat aext)
 Outlined version
 
+	void Dot(VGfloat x, VGfloat y, bool smooth)
+Draw a 1 unit dot with it's lower-left extent at (x,y). Only fill is used, no stroke.
+If smooth == true then a circle is drawn with it's centre at (x+0.5,y+0.5),
+if smooth == false then a rectangle is drawn from (x,y).
+
 ### Text and Images
 
 	void Text(VGfloat x, VGfloat y, char* s, Fontinfo f, int pointsize)
