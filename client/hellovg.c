@@ -15,7 +15,7 @@ int main() {
 	char hello2[] = {'H','e','l','l',0xc3,0xb3,' ', 'V', 'i', 'l', 0xc3,0xa1,'g',0};
 	char hello3[] = {'A','h','o','j',' ','s','v',0xc4,0x95,'t','e',0};
         setlocale(LC_ALL, "");
-        init(&width, &height);				   // Graphics initialization
+        InitShapes(&width, &height);				   // Graphics initialization
 
 	Start(width, height);				   // Start the picture
 	Background(0, 0, 0);				   // Black background
@@ -28,9 +28,9 @@ int main() {
 	TextMid(width / 2, (height * 0.1), hello3 , SerifTypeface, width / 15);
 	End();						   // End the picture
 
-        WindowSaveAsPNG("hello.png", 0, 0, 0, 0, 9);
+        WindowSaveAsPng("hello.png", 0, 0, 0, 0, 9);
         
 	fgets(s, 2, stdin);				   // look at the pic, end with [RETURN]
-	finish();					   // Graphics cleanup
+	FinishShapes();					   // Graphics cleanup
 	exit(0);
 }

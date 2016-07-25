@@ -13,7 +13,7 @@ int main() {
 	char *message = "Now is the time for all good men to come to the aid of the party";
 	char s[3];
 
-	init(&w, &h);
+	InitShapes(&w, &h);
 	float speed, x, rx, ry, rw, rh;
 	speed = 15.0;
 	x  = 0;
@@ -43,6 +43,6 @@ int main() {
 		End();
 	}
 	fgets(s, 2, stdin);
-	finish();
+	FinishShapes();
 	exit(0);
 }

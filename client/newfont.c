@@ -18,10 +18,10 @@ int main(int argc, char *argv[]) {
 	char hello2[] = {'H','e','l','l',0xc3,0xb3,' ', 'V', 'i', 'l', 0xc3,0xa1,'g',0};
 	char hello3[] = {'A','h','o','j',' ','s','v',0xc4,0x95,'t','e',0};
 	setlocale(LC_CTYPE, "");
-	init(&width, &height);				   // Graphics
+	InitShapes(&width, &height);				   // Graphics
                                                            // initialization
         if (vg_error) {
-                finish();
+                FinishShapes();
                 return -1;
         }
      
@@ -84,8 +84,8 @@ int main(int argc, char *argv[]) {
                 // unloadfont safely handles new fonts, it will call
                 // the correct UnloadTTF() function for you.
         if (myfont != SerifTypeface)
-                unloadfont(myfont);
+                UnloadFont(myfont);
         
-        finish();					   // Graphics cleanup
+        FinishShapes();					   // Graphics cleanup
 	exit(0);
 }

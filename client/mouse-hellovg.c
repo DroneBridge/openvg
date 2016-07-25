@@ -158,7 +158,7 @@ int mouseinit(int w, int h) {
 int main() {
 	int width, height, cursorx, cursory, cbsize;
 
-	init(&width, &height);				   // Graphics initialization
+	InitShapes(&width, &height);				   // Graphics initialization
 	cursorx = width / 2;
 	cursory = height / 2;
 	cbsize = (CUR_SIZ * 2) + 1;
@@ -190,6 +190,6 @@ int main() {
 	}
 	restoreCursor(CursorBuffer);			   // not strictly necessary as display will be closed
 	vgDestroyImage(CursorBuffer);			   // tidy up memory
-	finish();					   // Graphics cleanup
+	FinishShapes();					   // Graphics cleanup
 	exit(0);
 }

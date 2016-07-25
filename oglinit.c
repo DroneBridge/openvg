@@ -222,7 +222,7 @@ cursor_t *createCursor(STATE_T * state, const uint32_t * data, uint32_t w, uint3
 	}
 
 	uint32_t img_p;
-	cursor->resource = vc_dispmanx_resource_create(VC_IMAGE_RGBA32, w, h, &img_p);
+	cursor->resource = vc_dispmanx_resource_create(VC_IMAGE_RGBA32, (w>16?w:17), h, &img_p);
 	if (cursor->resource == 0) {
 		free(image);
 		free(cursor);

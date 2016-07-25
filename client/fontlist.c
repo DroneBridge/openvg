@@ -104,17 +104,17 @@ int main(int argc, char *argv[]) {
 		exit(3);
 	}
 
-	init(&width, &height);
+	InitShapes(&width, &height);
 	setlocale(LC_CTYPE, "");
 
                 // Unload the default fonts else the Free* fonts won't
                 // load. Set the variables to NULL after freeing them
                 // otherwise finish() will try to free them too.
-        unloadfont(SansTypeface);
+        UnloadFont(SansTypeface);
         SansTypeface = NULL;
-        unloadfont(SerifTypeface);
+        UnloadFont(SerifTypeface);
         SerifTypeface = NULL;
-        unloadfont(MonoTypeface);
+        UnloadFont(MonoTypeface);
         MonoTypeface = NULL;
         
 	VGfloat x, y, top, bottom, left, colwidth, vspace;
@@ -140,7 +140,7 @@ int main(int argc, char *argv[]) {
 			continue;
 		}
 		Text(x, y, basename(fontpaths[i]), myfont, fontsize);
-		unloadfont(myfont);
+		UnloadFont(myfont);
                 End(); // This takes a while - update after each one.
                 y = y - vspace;
 		if (y < bottom) {
@@ -150,6 +150,6 @@ int main(int argc, char *argv[]) {
 	}
 	End();
 	fgets(s, 2, stdin);
-	finish();
+	FinishShapes();
 	exit(0);
 }

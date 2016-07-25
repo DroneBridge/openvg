@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
                 // attempt to use a string that isn't valid then the
                 // Text functions will silently do nothing!
         setlocale(LC_CTYPE, "");    // Set locale to system default
-        init(&width, &height);				   // Graphics initialization
+        InitShapes(&width, &height);				   // Graphics initialization
 
 	Start(width, height);				   // Start the picture
 	Background(0, 0, 0);				   // Black background
@@ -80,7 +80,7 @@ int main(int argc, char *argv[]) {
                 // unloadfont now recognises fontsystem fonts and will
                 // correctly call UnloadTTF() for you.
 //        UnloadTTF(myserif);
-        unloadfont(myserif);
-        finish();					   // Graphics cleanup
+        UnloadFont(myserif);
+        Finish();					   // Graphics cleanup
 	exit(0);
 }

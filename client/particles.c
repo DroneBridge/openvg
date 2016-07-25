@@ -159,7 +159,7 @@ int main(int argc, char **argv) {
 	setOptions(argc, argv);
 
 	int w, h;
-	init(&w, &h);
+	InitShapes(&w, &h);
 	initParticles(w, h);
 
 	Start(w, h);
@@ -177,4 +177,5 @@ int main(int argc, char **argv) {
 			i = 0;
 		}
 	}
+	FinishShapes();
 }

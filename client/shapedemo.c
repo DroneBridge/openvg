@@ -26,7 +26,7 @@ VGfloat randf(int n) {
 void coordpoint(VGfloat x, VGfloat y, VGfloat size, VGfloat pcolor[4]) {
 	Fill(128, 0, 0, 0.3);
 	Circle(x, y, size);
-	setfill(pcolor);
+	SetFill(pcolor);
 }
 
 // grid draws a grid
@@ -76,7 +76,7 @@ void gradient(int width, int height) {
 	Circle(cx, cy, r);
 	
 	RGBA(.5, 0, 0, 0.3, dotcolor);
-	setfill(dotcolor);
+	SetFill(dotcolor);
 	Circle(x1, y1, 10);
 	Circle(x2, y2, 10);
 	Circle(cx, cy, 10);
@@ -84,7 +84,7 @@ void gradient(int width, int height) {
 	Circle(fx, fy, 10);
 	
 	RGB(0,0,0,dotcolor);
-	setfill(dotcolor);
+	SetFill(dotcolor);
 	TextMid(x1, y1-20, "(x1, y1)", SansTypeface, 18);
 	TextMid(x2, y2+10, "(x2, y2)", SansTypeface, 18);
 	TextMid(cx, cy, "(cx, cy)", SansTypeface, 18);
@@ -382,7 +382,7 @@ void refcard(int width, int height) {
 	}
 	sy = top;
 	VGfloat cx = sx + (sw / 2), ex = sx + sw;
-	setfill(shapecolor);
+	SetFill(shapecolor);
 	Circle(cx, sy, sw);
 	coordpoint(cx, sy, dotsize, shapecolor);
 	sy -= sh * spacing;
@@ -634,9 +634,9 @@ int main(int argc, char **argv) {
 	char *usage =
 	    "%s [command]\n\tdemo sec\n\tastro\n\ttest ...\n\trand n\n\trotate n ...\n\timage\n\ttext\n\tfontsize\n\traspi\n\tadvert\n\tgradient\n";
 	char *progname = argv[0];
-	saveterm();
-	init(&w, &h);
-	rawterm();
+	SaveTerm();
+	InitShapes(&w, &h);
+	RawTerm();
 	switch (argc) {
 	case 2:
 		if (strncmp(argv[1], "image", 5) == 0) {
@@ -654,7 +654,7 @@ int main(int argc, char **argv) {
 		} else if (strncmp(argv[1], "gradient", 8) == 0) {
 			gradient(w,h);
 		} else {
-			restoreterm();
+			RestoreTerm();
 			fprintf(stderr, usage, progname);
 			return 1;
 		}
@@ -674,7 +674,7 @@ int main(int argc, char **argv) {
 		} else if (strncmp(argv[1], "test", 4) == 0) {
 			testpattern(w, h, argv[2]);
 		} else {
-			restoreterm();
+			RestoreTerm();
 			fprintf(stderr, usage, progname);
 			return 1;
 		}
@@ -684,7 +684,7 @@ int main(int argc, char **argv) {
 		if (strncmp(argv[1], "rotate", 6) == 0) {
 			rotext(w, h, atoi(argv[2]), argv[3]);
 		} else {
-			restoreterm();
+			RestoreTerm();
 			fprintf(stderr, usage, progname);
 			return 1;
 		}
@@ -694,7 +694,7 @@ int main(int argc, char **argv) {
 		refcard(w, h);
 	}
 	waituntil(0x1b);
-	restoreterm();
-	finish();
+	RestoreTerm();
+	FinishShapes();
 	return 0;
 }

@@ -50,6 +50,8 @@ static VGPath rect_path = VG_INVALID_HANDLE;
 static VGPath line_path = VG_INVALID_HANDLE;
 static VGPath roundrect_path = VG_INVALID_HANDLE;
 static VGPath ellipse_path = VG_INVALID_HANDLE;
+static VGPath dot_smooth_path = VG_INVALID_HANDLE;
+static VGPath dot_rough_path = VG_INVALID_HANDLE;
 static VGPaint fill_paint = VG_INVALID_HANDLE;
 static VGPaint stroke_paint = VG_INVALID_HANDLE;
 
@@ -416,11 +418,11 @@ bool InitShapes(int32_t * w, int32_t * h) {
 	stroke_paint = vgCreatePaint();
 	err_state |= stroke_paint == VG_INVALID_HANDLE;
 
-	common_path = vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 0, 0, VG_PATH_CAPABILITY_APPEND_TO);
+	common_path = vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 0, 0, VG_PATH_CAPABILITY_APPEND_TO | VG_PATH_CAPABILITY_MODIFY);
 	err_state |= common_path == VG_INVALID_HANDLE;
 
 	VGubyte segments[] = { VG_MOVE_TO_ABS, VG_CUBIC_TO };
-	VGfloat coords[] = { 0, 0, 1, -1, 2, 1, 3, 0 };
+	VGfloat coords[] = { 0.0f, 0.0f, 1.0f, -1.0f, 2.0f, 1.0f, 3.0f, 0.0f };
 
 	cbezier_path =
 	    vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 2, 8,
@@ -446,7 +448,7 @@ bool InitShapes(int32_t * w, int32_t * h) {
 	if (rect_path == VG_INVALID_HANDLE)
 		err_state |= 1;
 	else
-		vguRect(rect_path, 0, 0, 1, 1);
+		vguRect(rect_path, 0.0f, 0.0f, 1.0f, 1.0f);
 
 	line_path =
 	    vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 2, 4,
@@ -454,7 +456,7 @@ bool InitShapes(int32_t * w, int32_t * h) {
 	if (line_path == VG_INVALID_HANDLE)
 		err_state |= 1;
 	else
-		vguLine(line_path, 0, 0, 1, 1);
+		vguLine(line_path, 0.0f, 0.0f, 1.0f, 1.0f);
 
 	roundrect_path =
 	    vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 10, 26,
@@ -462,7 +464,7 @@ bool InitShapes(int32_t * w, int32_t * h) {
 	if (roundrect_path == VG_INVALID_HANDLE)
 		err_state |= 1;
 	else
-		vguRoundRect(roundrect_path, 0, 0, 2, 2, 1, 1);
+		vguRoundRect(roundrect_path, 0.0f, 0.0f, 2.0f, 2.0f, 1.0f, 1.0f);
 
 	ellipse_path =
 	    vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 4, 12,
@@ -470,7 +472,23 @@ bool InitShapes(int32_t * w, int32_t * h) {
 	if (ellipse_path == VG_INVALID_HANDLE)
 		err_state |= 1;
 	else
-		vguEllipse(ellipse_path, 0, 0, 1, 1);
+		vguEllipse(ellipse_path, 0.0f, 0.0f, 1.0f, 1.0f);
+
+	dot_smooth_path =
+	    vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 4, 12,
+			 VG_PATH_CAPABILITY_APPEND_TO);
+	if (dot_smooth_path == VG_INVALID_HANDLE)
+		err_state |= 1;
+	else
+		vguRect(dot_smooth_path, 0.0f, 0.0f, 1.0f, 1.0f);
+
+	dot_rough_path =
+	    vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 4, 12,
+			 VG_PATH_CAPABILITY_APPEND_TO);
+	if (dot_rough_path == VG_INVALID_HANDLE)
+		err_state |= 1;
+	else
+		vguEllipse(dot_rough_path, 0.5f, 0.5f, 1.0f, 1.0f);
 
 	if (err_state) {
 		fputs("Failed initialising libshapes paths.\n", stderr);
@@ -514,6 +532,8 @@ uint32_t CheckErrorStatus() {
 void FinishShapes() {
 	DeleteCursor();
 	eglSwapBuffers(state->display, state->surface);
+        vgDestroyPath(dot_rough_path);
+        vgDestroyPath(dot_smooth_path);
 	vgDestroyPath(ellipse_path);
 	vgDestroyPath(roundrect_path);
 	vgDestroyPath(line_path);
@@ -901,15 +921,15 @@ void Line(VGfloat x1, VGfloat y1, VGfloat x2, VGfloat y2) {
 
 // Roundrect makes an rounded rectangle at the specified location and dimensions
 void Roundrect(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat rw, VGfloat rh) {
-	const VGfloat coords[26] = { x + rw / 2, y,
+	const VGfloat coords[26] = { x + rw / 2.0f, y,
 		w - rw,
-		rw / 2, rh / 2, 0, rw / 2, rh / 2,
+		rw / 2.0f, rh / 2.0f, 0.0f, rw / 2.0f, rh / 2.0f,
 		h - rh,
-		rw / 2, rh / 2, 0, -rw / 2, rh / 2,
+		rw / 2.0f, rh / 2.0f, 0.0f, -rw / 2.0f, rh / 2.0f,
 		-(w - rw),
-		rw / 2, rh / 2, 0, -rw / 2, -rh / 2,
+		rw / 2.0f, rh / 2.0f, 0.0f, -rw / 2.0f, -rh / 2.0f,
 		-(h - rh),
-		rw / 2, rw / 2, 0, rw / 2, -rh / w
+		rw / 2.0f, rh / 2.0f, 0.0f, rw / 2.0f, -rh / 2.0f
 	};
 	vgModifyPathCoords(roundrect_path, 0, 9, coords);
 	vgDrawPath(roundrect_path, VG_FILL_PATH | VG_STROKE_PATH);
@@ -917,9 +937,9 @@ void Roundrect(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat rw, VGfloat r
 
 // Ellipse makes an ellipse at the specified location and dimensions
 void Ellipse(VGfloat x, VGfloat y, VGfloat w, VGfloat h) {
-	const VGfloat coords[12] = { x + w / 2, y,
-		w / 2, h / 2, 0, -w, 0,
-		w / 2, h / 2, 0, w, 0
+	const VGfloat coords[12] = { x + w / 2.0f, y,
+		w / 2.0f, h / 2.0f, 0.0f, -w, 0.0f,
+		w / 2.0f, h / 2.0f, 0.0f, w, 0.0f
 	};
 	vgModifyPathCoords(ellipse_path, 0, 3, coords);
 	vgDrawPath(ellipse_path, VG_FILL_PATH | VG_STROKE_PATH);
@@ -945,7 +965,7 @@ void Start(VGint width, VGint height) {
 	color[0] = color[1] = color[2] = 0.0f;
 	SetFill(color);
 	SetStroke(color);
-	StrokeWidth(0);
+	StrokeWidth(0.0f);
 	vgLoadIdentity();
 }
 
@@ -1058,15 +1078,15 @@ void RectOutline(VGfloat x, VGfloat y, VGfloat w, VGfloat h) {
 
 // RoundrectOutline  makes an rounded rectangle at the specified location and dimensions, outlined 
 void RoundrectOutline(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat rw, VGfloat rh) {
-	const VGfloat coords[26] = { x + rw / 2, y,
+	const VGfloat coords[26] = { x + rw / 2.0f, y,
 		w - rw,
-		rw / 2, rh / 2, 0, rw / 2, rh / 2,
+		rw / 2.0f, rh / 2.0f, 0.0f, rw / 2.0f, rh / 2.0f,
 		h - rh,
-		rw / 2, rh / 2, 0, -rw / 2, rh / 2,
+		rw / 2.0f, rh / 2.0f, 0.0f, -rw / 2.0f, rh / 2.0f,
 		-(w - rw),
-		rw / 2, rh / 2, 0, -rw / 2, -rh / 2,
+		rw / 2.0f, rh / 2.0f, 0.0f, -rw / 2.0f, -rh / 2.0f,
 		-(h - rh),
-		rw / 2, rw / 2, 0, rw / 2, -rh / w
+		rw / 2.0f, rh / 2.0f, 0.0f, rw / 2.0f, -rh / 2.0f
 	};
 	vgModifyPathCoords(roundrect_path, 0, 9, coords);
 	vgDrawPath(roundrect_path, VG_STROKE_PATH);
@@ -1074,9 +1094,9 @@ void RoundrectOutline(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat rw, VG
 
 // EllipseOutline makes an ellipse at the specified location and dimensions, outlined
 void EllipseOutline(VGfloat x, VGfloat y, VGfloat w, VGfloat h) {
-	const VGfloat coords[12] = { x + w / 2, y,
-		w / 2, h / 2, 0, -w, 0,
-		w / 2, h / 2, 0, w, 0
+	const VGfloat coords[12] = { x + w / 2.0f, y,
+		w / 2.0f, h / 2.0f, 0.0f, -w, 0.0f,
+		w / 2.0f, h / 2.0f, 0.0f, w, 0.0f
 	};
 	vgModifyPathCoords(ellipse_path, 0, 3, coords);
 	vgDrawPath(ellipse_path, VG_STROKE_PATH);
@@ -1214,6 +1234,23 @@ void DeletePath(VGPath path) {
 	vgDestroyPath(path);
 }
 
+// Dot draws a 1 unit dot with lower left extent at x, y either as a
+// cicle (smooth==true) or rectangle (smooth=false).
+// Only draws using fill (not stroke).
+void Dot(VGfloat x, VGfloat y, bool smooth)
+{
+    VGfloat matrix[9];
+    VGMatrixMode mode = vgGeti(VG_MATRIX_MODE);
+    if (mode != VG_MATRIX_PATH_USER_TO_SURFACE)
+        vgSeti(VG_MATRIX_MODE, VG_MATRIX_PATH_USER_TO_SURFACE);
+    vgGetMatrix(matrix);
+    vgTranslate(x, y);
+    vgDrawPath(smooth ? dot_smooth_path : dot_rough_path, VG_FILL_PATH);
+    vgLoadMatrix(matrix);
+    if (mode != VG_MATRIX_PATH_USER_TO_SURFACE)
+        vgSeti(VG_MATRIX_MODE, mode);
+}
+
 // Paint returns a paint of the specified colour
 VGPaint Paint(VGuint r, VGuint g, VGuint b, VGfloat a) {
 	VGfloat colour[4];
@@ -1292,7 +1329,7 @@ static char *grabWindow(VGint x, VGint y, VGint * w, VGint * h) {
 
 // Save an area of the window from (x,y) at a size of (w,h) to a .png
 // file. Returns true on success.
-bool WindowSaveAsPNG(const char *filename, VGint x, VGint y, VGint w, VGint h, int zlib_level) {
+bool WindowSaveAsPng(const char *filename, VGint x, VGint y, VGint w, VGint h, int zlib_level) {
 	bool success = false;
 	png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING,
 						      NULL, NULL, NULL);
@@ -1339,7 +1376,7 @@ bool WindowSaveAsPNG(const char *filename, VGint x, VGint y, VGint w, VGint h, i
 
  // Load a PNG from filename into a VGImage, return width & height in
  // pointers. For now we'll use the basic high-level reading.
-VGImage CreateImageFromPNG(const char *filename) {
+VGImage CreateImageFromPng(const char *filename) {
 	VGImage image = VG_INVALID_HANDLE;
 	FILE *file = fopen(filename, "rb");
 	if (file == NULL)
@@ -1521,7 +1558,7 @@ void MoveHWCursor(int32_t x, int32_t y) {
 
 // Moves cursor to OpenVG coordinte (origin bottom-left)
 void MoveCursor(int32_t x, int32_t y) {
-	moveCursor(state, priv_cursor, x, (int32_t)state->window_height - y);
+	moveCursor(state, priv_cursor, x, (int32_t)state->window_height - 1 - y);
 }
 
 void DeleteCursor() {

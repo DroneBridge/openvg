@@ -56,7 +56,7 @@ int main() {
                 desert_h = vgGetParameteri(desert, VG_IMAGE_HEIGHT);
         }
         
-        VGImage cursor = CreateImageFromPNG("Select.png");
+        VGImage cursor = CreateImageFromPng("Select.png");
         if (cursor == VG_INVALID_HANDLE)
                 fputs("Failed to load Select.png cursor.\n", stderr);
 

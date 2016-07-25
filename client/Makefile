@@ -14,7 +14,7 @@ endif
 INCLUDEFLAGS=-I$(RPISDK)/opt/vc/include -I$(RPISDK)/opt/vc/include/interface/vmcs_host/linux -I$(RPISDK)/opt/vc/include/interface/vcos/pthreads -I..
 LIBFLAGS= -Wl,-rpath=$(RPISDK)/opt/vc/lib -L$(RPISDK)/opt/vc/lib -lEGL -lGLESv2 -lbcm_host -pthread -ljpeg -lpng -lfreetype -lfontconfig -lz
 
-all: shapedemo hellovg mouse-hellovg particles clip
+all: shapedemo hellovg mouse-hellovg particles clip ptest dot
 
 shapedemo:	shapedemo.c ../libshapes.o ../oglinit.o ../fontsystem.o
 	$(CC) $(CCOPTS) $(INCLUDEFLAGS) -o shapedemo shapedemo.c ../libshapes.o ../oglinit.o ../fontsystem.o $(LIBFLAGS)
@@ -52,8 +52,12 @@ ptest:	ptest.c ../libshapes.o ../oglinit.o ../fontsystem.o
 fontlist:	fontlist.c ../libshapes.o ../oglinit.o ../fontsystem.o
 	$(CC) $(CCOPTS) $(INCLUDEFLAGS) -o  fontlist fontlist.c ../libshapes.o ../oglinit.o ../fontsystem.o $(LIBFLAGS)
 
-fonttest:	fonttest.c
-	$(CC) $(CCOPTS) $(INCLUDEFLAGS) -o fonttest fonttest.c -lshapes $(LIBFLAGS)
+fonttest:	fonttest.c ../libshapes.o ../oglinit.o ../fontsystem.o
+	$(CC) $(CCOPTS) $(INCLUDEFLAGS) -o fonttest fonttest.c ../libshapes.o ../oglinit.o ../fontsystem.o $(LIBFLAGS)
 
 image:	image.c ../libshapes.o ../oglinit.o ../fontsystem.o
 	$(CC) $(CCOPTS) $(INCLUDEFLAGS) -o image image.c ../libshapes.o ../oglinit.o ../fontsystem.o $(LIBFLAGS)
+
+dot:	dot.c ../libshapes.o ../oglinit.o ../fontsystem.o
+	$(CC) $(CCOPTS) $(INCLUDEFLAGS) -o dot dot.c ../libshapes.o ../oglinit.o ../fontsystem.o $(LIBFLAGS)
+

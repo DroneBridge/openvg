@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
         setlocale(LC_CTYPE, "");
 
         int width, height;
-        init(&width, &height);
+        InitShapes(&width, &height);
 
         char *fontname = argc > 1 ? argv[1] : "DejaVuSerif";
         char *fontstyle = argc > 2 ? argv[2] : "Regular";
@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
         Fontinfo myfont = LoadTTF(fname);
         if (!myfont) {
                 puts("Error loading font");
-                finish();
+                FinishShapes();
                 return 1;
         }
 
@@ -62,8 +62,8 @@ int main(int argc, char *argv[])
         Stroke(color_green, 1.0f);
         RectOutline(start_pos, 100, textwidth, line_height*2);
         End();
-        unloadfont(myfont);
+        UnloadFont(myfont);
         fgetc(stdin);
-        finish();
+        FinishShapes();
         return 0;
 }

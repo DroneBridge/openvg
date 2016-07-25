@@ -200,7 +200,7 @@ int main(int argc, char **argv) {
         particles = malloc(num_particles * sizeof *particles);
         
 	int w, h;
-	init(&w, &h);
+	InitShapes(&w, &h);
 	initParticles(w, h);
 
         snprintf(demoText, 63, "Particle demo with %d particles", num_particles);
@@ -213,7 +213,7 @@ int main(int argc, char **argv) {
         Background(0, 0, 0);
         
 	int i = 0;
-        int frames = -1; // -1 is a very long time!
+        int frames = 100000;
         while (frames--) {
 		draw(w, h);
 
@@ -227,10 +227,10 @@ int main(int argc, char **argv) {
 		}
 	}
         deinitParticles();
-        unloadfont(myFont);
+        UnloadFont(myFont);
         DeletePaint(textColour);
         DeletePaint(bgFade);
         DeletePath(bgFadeRect);
-        finish();
+        FinishShapes();
         return 0;
 }

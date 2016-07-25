@@ -70,7 +70,7 @@ extern "C" {
 	extern void rawterm() DEPRECATED;
 	extern VGImage createImageFromJpeg(const char *) DEPRECATED;
 	// New function names
-	extern Fontinfo LoadFnt(const int *, const int *, const unsigned char *, const int *, const int *, const int *,
+	extern Fontinfo LoadFont(const int *, const int *, const unsigned char *, const int *, const int *, const int *,
 				const short *, int, int, int);
 	extern void UnloadFont(Fontinfo);
 	extern void MakeImage(VGfloat, VGfloat, VGint, VGint, VGubyte *);
@@ -96,7 +96,7 @@ extern "C" {
 	extern void WindowClear();
 	extern void WindowOpacity(uint32_t alpha);
 	extern void WindowPosition(int32_t x, int32_t y);
-	extern bool WindowSaveAsPNG(const char *filename, VGint x, VGint y, VGint w, VGint h, int zlib_level);
+	extern bool WindowSaveAsPng(const char *filename, VGint x, VGint y, VGint w, VGint h, int zlib_level);
 	extern VGImage CreateImageFromPng(const char *filename);
 	extern void DrawImageAt(VGfloat x, VGfloat y, VGImage image);
 	extern void DrawImageAtFit(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGImage image);
@@ -125,8 +125,8 @@ extern "C" {
 	extern void DrawPathOutline(VGPath path);
 	extern void DrawPathOutlineAt(VGfloat x, VGfloat y, VGPath path);
 	extern void DeletePath(VGPath path);
-
-	extern VGPaint Paint(unsigned int r, unsigned int g, unsigned int b, float a);
+        extern void Dot(VGfloat x, VGfloat y, bool smooth);
+        extern VGPaint Paint(unsigned int r, unsigned int g, unsigned int b, float a);
 	extern VGPaint LinearGradientPaint(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat *, int);
 	extern VGPaint RadialGradientPaint(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat *, int);
 	extern void DeletePaint(VGPaint paint);
