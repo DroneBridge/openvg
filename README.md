@@ -372,8 +372,8 @@ The indent tool is also useful for code formatting.  Install them via:
 Next, build the library and test:
 
 	pi@raspberrypi ~ $ git clone git://github.com/paeryn/openvg
-	pi@raspberrypi ~ $ git checkout newfonts
 	pi@raspberrypi ~ $ cd openvg
+	pi@raspberrypi ~ $ git checkout windowsave
 	pi@raspberrypi ~/openvg $ make
 	g++ -I/usr/include/freetype2 fontutil/font2openvg.cpp -o font2openvg -lfreetype
 	./font2openvg /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf DejaVuSans.inc DejaVuSans
