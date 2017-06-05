@@ -529,6 +529,7 @@ uint32_t CheckErrorStatus() {
 
 // finish cleans up
 void FinishShapes() {
+        ScreenBrightness(255);
 	DeleteCursor();
 	eglSwapBuffers(state->display, state->surface);
 	vgDestroyPath(dot_rough_path);
