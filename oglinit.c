@@ -312,6 +312,7 @@ void screenBrightness(STATE_T * state, uint32_t level) {
 	static uint32_t brightnessLevel = 255;
 	static DISPMANX_RESOURCE_HANDLE_T brightnessLayer = 0;
 	static DISPMANX_ELEMENT_HANDLE_T brightnessElement = 0;
+        int ret;
 
 	if (level > 255)
 		level = 255;
@@ -324,10 +325,14 @@ void screenBrightness(STATE_T * state, uint32_t level) {
 		brightnessLayer = vc_dispmanx_resource_create(VC_IMAGE_RGBA32, 32, 16, &img_p);
 		if (!brightnessLayer)
 			return;
-		char *image = calloc(1, 32 * 16 * 4);
-		dst_rect = { 0, 0, 32, 16 };
-		vc_dispmanx_resource_write_data(brightnessLayer, VC_IMAGE_RGBA32, 32 * 4, image, &dst_rect);
-		free(image);
+                uint32_t image = 0;
+		vc_dispmanx_rect_set(&dst_rect, 0, 0, 1, 1);
+		ret = vc_dispmanx_resource_write_data(brightnessLayer, VC_IMAGE_RGBA32, sizeof image, &image, &dst_rect);
+                if (!ret) {
+                        vc_dispmanx_resource_delete(brightnessLayer);
+                        brightnessLayer = 0;
+                        return;
+                }
 	}
 
 	brightnessLevel = level;
