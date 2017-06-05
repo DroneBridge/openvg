@@ -35,4 +35,4 @@ extern void showCursor(cursor_t *cursor);
 extern void hideCursor(cursor_t *cursor);
 extern void moveCursor(STATE_T *state, cursor_t *cursor, int32_t x, int32_t y);
 extern void deleteCursor(cursor_t *cursor);
-
+extern void screenBrightness(STATE_T *state, uint32_t level);

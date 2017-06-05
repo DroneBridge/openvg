@@ -188,18 +188,14 @@ void dispmanChangeWindowOpacity(STATE_T * state, uint32_t alpha) {
 // Custom cursor pointer code.
 
 static inline int align_up(int x, int y) {
-	return ((x + y - 1) & ~(y - 1));
+	return (((x) + (y) - 1) & ~((y) - 1));
 }
 
 // Create a cursor
 cursor_t *createCursor(STATE_T * state, const uint32_t * data, uint32_t w, uint32_t h, uint32_t hx, uint32_t hy, bool upsidedown) {
 	if (w == 0 || w > state->screen_width || h == 0 || h > state->screen_height || hx >= w || hy >= h)
 		return NULL;
-	int32_t pitch = align_up(w * 4, 32);
-	// dispman doesn't seem to like it if pitch is less than 128
-	if (pitch < 128)
-		pitch = 128;
-
+	int32_t pitch = align_up(w, 32) * 4;
 	cursor_t *cursor = calloc(1, sizeof *cursor);
 	if (cursor == NULL)
 		return NULL;
@@ -220,17 +216,17 @@ cursor_t *createCursor(STATE_T * state, const uint32_t * data, uint32_t w, uint3
 		free(cursor);
 		return NULL;
 	}
-
+	// Pass a minimum of 17 for width otherwise corruption occurs
 	uint32_t img_p;
-	cursor->resource = vc_dispmanx_resource_create(VC_IMAGE_RGBA32, (w>16?w:17), h, &img_p);
+	cursor->resource = vc_dispmanx_resource_create(VC_IMAGE_RGBA32, (w > 16 ? w : 17), h, &img_p);
 	if (cursor->resource == 0) {
 		free(image);
 		free(cursor);
 		return NULL;
 	}
 
-	unsigned int row;
-	int incr = (int32_t) w;
+	uint32_t row;
+	int32_t incr = (int32_t) w;
 	if (upsidedown) {
 		data += w * (h - 1);
 		incr = -incr;
@@ -307,5 +303,66 @@ void deleteCursor(cursor_t * cursor) {
 		}
 		vc_dispmanx_resource_delete(cursor->resource);
 		free(cursor);
+	}
+}
+
+// Dim screen
+// level goes from 0 = black -> 255 = Normal. Over 255 is clamped.
+void screenBrightness(STATE_T * state, uint32_t level) {
+	static uint32_t brightnessLevel = 255;
+	static DISPMANX_RESOURCE_HANDLE_T brightnessLayer = 0;
+	static DISPMANX_ELEMENT_HANDLE_T brightnessElement = 0;
+
+	if (level > 255)
+		level = 255;
+	if (brightnessLevel == level)
+		return;
+
+        VC_RECT_T src_rect, dst_rect;
+	if (!brightnessLayer) {
+		uint32_t img_p;
+		brightnessLayer = vc_dispmanx_resource_create(VC_IMAGE_RGBA32, 32, 16, &img_p);
+		if (!brightnessLayer)
+			return;
+		char *image = calloc(1, 32 * 16 * 4);
+		dst_rect = { 0, 0, 32, 16 };
+		vc_dispmanx_resource_write_data(brightnessLayer, VC_IMAGE_RGBA32, 32 * 4, image, &dst_rect);
+		free(image);
+	}
+
+	brightnessLevel = level;
+
+        DISPMANX_UPDATE_HANDLE_T update;
+	if (level == 255) {
+		update = vc_dispmanx_update_start(0);
+		vc_dispmanx_element_remove(update, brightnessElement);
+		vc_dispmanx_update_submit_sync(update);
+		vc_dispmanx_resource_delete(brightnessLayer);
+		brightnessLayer = 0;
+		brightnessElement = 0;
+	} else {
+		if (brightnessElement) {
+			update = vc_dispmanx_update_start(0);
+			vc_dispmanx_element_change_attributes(update, brightnessElement, 1 << 1, 0, (uint8_t) (255 - level), 0, 0,
+							      0, DISPMANX_NO_ROTATE);
+			vc_dispmanx_update_submit_sync(update);
+		} else {
+			static VC_DISPMANX_ALPHA_T alpha = {
+				DISPMANX_FLAGS_ALPHA_FIXED_ALL_PIXELS,
+				255, 0
+			};
+			alpha.opacity = 255 - level;
+
+			update = vc_dispmanx_update_start(0);
+			vc_dispmanx_rect_set(&dst_rect, 0, 0, state->screen_width, state->screen_height);
+			vc_dispmanx_rect_set(&src_rect, 0, 0, 1 << 16, 1 << 16);
+			brightnessElement = vc_dispmanx_element_add(update,
+								    state->dmx_display,
+								    255, &dst_rect,
+								    brightnessLayer,
+								    &src_rect,
+								    DISPMANX_PROTECTION_NONE, &alpha, NULL, VC_IMAGE_ROT0);
+			vc_dispmanx_update_submit_sync(update);
+		}
 	}
 }

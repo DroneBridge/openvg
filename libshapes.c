@@ -418,7 +418,9 @@ bool InitShapes(int32_t * w, int32_t * h) {
 	stroke_paint = vgCreatePaint();
 	err_state |= stroke_paint == VG_INVALID_HANDLE;
 
-	common_path = vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 0, 0, VG_PATH_CAPABILITY_APPEND_TO | VG_PATH_CAPABILITY_MODIFY);
+	common_path =
+	    vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 0, 0,
+			 VG_PATH_CAPABILITY_APPEND_TO | VG_PATH_CAPABILITY_MODIFY);
 	err_state |= common_path == VG_INVALID_HANDLE;
 
 	VGubyte segments[] = { VG_MOVE_TO_ABS, VG_CUBIC_TO };
@@ -475,16 +477,13 @@ bool InitShapes(int32_t * w, int32_t * h) {
 		vguEllipse(ellipse_path, 0.0f, 0.0f, 1.0f, 1.0f);
 
 	dot_smooth_path =
-	    vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 4, 12,
-			 VG_PATH_CAPABILITY_APPEND_TO);
+	    vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 4, 12, VG_PATH_CAPABILITY_APPEND_TO);
 	if (dot_smooth_path == VG_INVALID_HANDLE)
 		err_state |= 1;
 	else
 		vguEllipse(dot_rough_path, 0.5f, 0.5f, 1.0f, 1.0f);
 
-	dot_rough_path =
-	    vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 4, 12,
-			 VG_PATH_CAPABILITY_APPEND_TO);
+	dot_rough_path = vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 4, 12, VG_PATH_CAPABILITY_APPEND_TO);
 	if (dot_rough_path == VG_INVALID_HANDLE)
 		err_state |= 1;
 	else
@@ -532,8 +531,8 @@ uint32_t CheckErrorStatus() {
 void FinishShapes() {
 	DeleteCursor();
 	eglSwapBuffers(state->display, state->surface);
-        vgDestroyPath(dot_rough_path);
-        vgDestroyPath(dot_smooth_path);
+	vgDestroyPath(dot_rough_path);
+	vgDestroyPath(dot_smooth_path);
 	vgDestroyPath(ellipse_path);
 	vgDestroyPath(roundrect_path);
 	vgDestroyPath(line_path);
@@ -1022,12 +1021,18 @@ void Background(VGuint r, VGuint g, VGuint b) {
 	vgClear(0, 0, (VGint) state->window_width, (VGint) state->window_height);
 }
 
-// BackgroundRGB clears the screen to a background color with alpha
-void BackgroundRGB(VGuint r, VGuint g, VGuint b, VGfloat a) {
+// BackgroundRGBA clears the screen to a background color with alpha
+void BackgroundRGBA(VGuint r, VGuint g, VGuint b, VGfloat a) {
 	VGfloat colour[4];
 	RGBA(r, g, b, a, colour);
 	vgSetfv(VG_CLEAR_COLOR, 4, colour);
 	vgClear(0, 0, (VGint) state->window_width, (VGint) state->window_height);
+}
+
+// Old name, doesn't match the parameters so deprecated in favour of
+// BackgroundRGBA()
+void BackgroundRGB(VGuint r, VGuint g, VGuint b, VGfloat a) {
+	BackgroundRGBA(r, g, b, a);
 }
 
 // WindowClear clears the window to previously set background colour
@@ -1237,18 +1242,17 @@ void DeletePath(VGPath path) {
 // Dot draws a 1 unit dot with lower left extent at x, y either as a
 // cicle (smooth==true) or rectangle (smooth=false).
 // Only draws using fill (not stroke).
-void Dot(VGfloat x, VGfloat y, bool smooth)
-{
-    VGfloat matrix[9];
-    VGMatrixMode mode = vgGeti(VG_MATRIX_MODE);
-    if (mode != VG_MATRIX_PATH_USER_TO_SURFACE)
-        vgSeti(VG_MATRIX_MODE, VG_MATRIX_PATH_USER_TO_SURFACE);
-    vgGetMatrix(matrix);
-    vgTranslate(x, y);
-    vgDrawPath(smooth ? dot_smooth_path : dot_rough_path, VG_FILL_PATH);
-    vgLoadMatrix(matrix);
-    if (mode != VG_MATRIX_PATH_USER_TO_SURFACE)
-        vgSeti(VG_MATRIX_MODE, mode);
+void Dot(VGfloat x, VGfloat y, bool smooth) {
+	VGfloat matrix[9];
+	VGMatrixMode mode = vgGeti(VG_MATRIX_MODE);
+	if (mode != VG_MATRIX_PATH_USER_TO_SURFACE)
+		vgSeti(VG_MATRIX_MODE, VG_MATRIX_PATH_USER_TO_SURFACE);
+	vgGetMatrix(matrix);
+	vgTranslate(x, y);
+	vgDrawPath(smooth ? dot_smooth_path : dot_rough_path, VG_FILL_PATH);
+	vgLoadMatrix(matrix);
+	if (mode != VG_MATRIX_PATH_USER_TO_SURFACE)
+		vgSeti(VG_MATRIX_MODE, mode);
 }
 
 // Paint returns a paint of the specified colour
@@ -1537,7 +1541,7 @@ bool CreateCursorFromVGImage(VGImage img, uint32_t hot_x, uint32_t hot_y) {
 	if (data == NULL)
 		return false;
 
-	vgGetImageSubData(img, data, w * 4, VG_sARGB_8888, 0, 0, w, h);
+	vgGetImageSubData(img, data, w * 4, VG_sABGR_8888, 0, 0, w, h);
 	priv_cursor = createCursor(state, data, w, h, hot_x, hot_y, true);
 	free(data);
 	return (priv_cursor != NULL);
@@ -1558,7 +1562,7 @@ void MoveHWCursor(int32_t x, int32_t y) {
 
 // Moves cursor to OpenVG coordinte (origin bottom-left)
 void MoveCursor(int32_t x, int32_t y) {
-	moveCursor(state, priv_cursor, x, (int32_t)state->window_height - 1 - y);
+	moveCursor(state, priv_cursor, x, (int32_t) state->window_height - 1 - y);
 }
 
 void DeleteCursor() {
@@ -1566,4 +1570,8 @@ void DeleteCursor() {
 		deleteCursor(priv_cursor);
 		priv_cursor = NULL;
 	}
+}
+
+void ScreenBrightness(uint32_t level) {
+	screenBrightness(state, level);
 }

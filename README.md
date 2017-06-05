@@ -1,4 +1,4 @@
-#Testbed for exploring OpenVG on the Raspberry Pi.
+# Testbed for exploring OpenVG on the Raspberry Pi.
 
 <a href="http://www.flickr.com/photos/ajstarks/7811750326/" title="rotext by ajstarks, on Flickr"><img src="http://farm8.staticflickr.com/7249/7811750326_614ea891ae.jpg" width="500" height="281" alt="rotext"></a>
 
@@ -148,7 +148,7 @@ Set the fill color
 	void Background(unsigned int r, unsigned int g, unsigned int b)
 Fill the screen with the background color defined from RGB values.
 
-	void BackgroundRGB(unsigned int r, unsigned int g, unsigned int b, VGfloat a)
+	void BackgroundRGBA(unsigned int r, unsigned int g, unsigned int b, VGfloat a)
 clears the screen to a background color with alpha
 
 	void StrokeWidth(float width)

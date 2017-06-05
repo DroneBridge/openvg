@@ -82,15 +82,12 @@ int main() {
                 vgSeti(VG_MATRIX_MODE, VG_MATRIX_IMAGE_USER_TO_SURFACE);
 
                 // Create cursor - get image from VGimage
-                uint32_t *cur_img = malloc(cursor_w * 4 * cursor_h);
-                vgGetImageSubData(cursor, cur_img, cursor_w * 4,
-                                  VG_sARGB_8888, 0, 0, cursor_w, cursor_h);
                 CreateCursorFromVGImage(cursor, 3, 3);
                 MoveCursor(0, 0);
                 ShowCursor();
 
                 int count;
-                for (count = 0; count < 200; count++) {
+                for (count = 0; count < 256; count++) {
                         MoveCursor(count % width, count % height);
                         WindowClear();
                         Circle(width / 2, 0, width); // Background
@@ -120,6 +117,7 @@ int main() {
                                 fprintf(stderr, "Error @ count = %d\n", count);
                                 break;
                         }
+			ScreenBrightness(count * 4) % 255);
                 }
                 DeleteCursor();
         }

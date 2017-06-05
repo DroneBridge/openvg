@@ -39,7 +39,9 @@ extern "C" {
 	extern bool End();
 	extern bool SaveEnd(const char *);
 	extern void Background(VGuint, VGuint, VGuint);
-	extern void BackgroundRGB(VGuint, VGuint, VGuint, VGfloat);
+	// Deprecate BackgroundRGB, should really be BackgroundRGBA
+	extern void BackgroundRGB(VGuint, VGuint, VGuint, VGfloat) DEPRECATED;
+	extern void BackgroundRGBA(VGuint, VGuint, VGuint, VGfloat);
 	// Deprecate non capitalised function names
 	extern bool init(int32_t *, int32_t *) DEPRECATED;
 	extern void finish() DEPRECATED;
@@ -71,7 +73,7 @@ extern "C" {
 	extern VGImage createImageFromJpeg(const char *) DEPRECATED;
 	// New function names
 	extern Fontinfo LoadFont(const int *, const int *, const unsigned char *, const int *, const int *, const int *,
-				const short *, int, int, int);
+				 const short *, int, int, int);
 	extern void UnloadFont(Fontinfo);
 	extern void MakeImage(VGfloat, VGfloat, VGint, VGint, VGubyte *);
 	extern void SaveTerm();
@@ -125,8 +127,8 @@ extern "C" {
 	extern void DrawPathOutline(VGPath path);
 	extern void DrawPathOutlineAt(VGfloat x, VGfloat y, VGPath path);
 	extern void DeletePath(VGPath path);
-        extern void Dot(VGfloat x, VGfloat y, bool smooth);
-        extern VGPaint Paint(unsigned int r, unsigned int g, unsigned int b, float a);
+	extern void Dot(VGfloat x, VGfloat y, bool smooth);
+	extern VGPaint Paint(unsigned int r, unsigned int g, unsigned int b, float a);
 	extern VGPaint LinearGradientPaint(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat *, int);
 	extern VGPaint RadialGradientPaint(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat *, int);
 	extern void DeletePaint(VGPaint paint);
@@ -141,6 +143,7 @@ extern "C" {
 	extern void MoveHWCursor(int32_t x, int32_t y);
 	extern void MoveCursor(int32_t x, int32_t y);
 	extern void DeleteCursor();
+	extern void ScreenBrightness(uint32_t level);
 
 #undef DEPRECATED
 #if defined(__cplusplus)
