@@ -62,7 +62,7 @@ static void setWindowParams(STATE_T * state, int32_t x, int32_t y, VC_RECT_T * s
 
 	state->window_x = x;
 	state->window_y = y;
-
+        
 	vc_dispmanx_rect_set(dst_rect, dx, dy, w, h);
 	vc_dispmanx_rect_set(src_rect, sx << 16, sy << 16, w << 16, h << 16);
 }
@@ -188,14 +188,14 @@ void dispmanChangeWindowOpacity(STATE_T * state, uint32_t alpha) {
 // Custom cursor pointer code.
 
 static inline int align_up(int x, int y) {
-	return (((x) + (y) - 1) & ~((y) - 1));
+	return (x + y - 1) & ~(y - 1);
 }
 
 // Create a cursor
 cursor_t *createCursor(STATE_T * state, const uint32_t * data, uint32_t w, uint32_t h, uint32_t hx, uint32_t hy, bool upsidedown) {
 	if (w == 0 || w > state->screen_width || h == 0 || h > state->screen_height || hx >= w || hy >= h)
 		return NULL;
-	int32_t pitch = align_up(w, 32) * 4;
+	int32_t pitch = align_up(w * 4, 64);
 	cursor_t *cursor = calloc(1, sizeof *cursor);
 	if (cursor == NULL)
 		return NULL;
@@ -216,9 +216,8 @@ cursor_t *createCursor(STATE_T * state, const uint32_t * data, uint32_t w, uint3
 		free(cursor);
 		return NULL;
 	}
-	// Pass a minimum of 17 for width otherwise corruption occurs
 	uint32_t img_p;
-	cursor->resource = vc_dispmanx_resource_create(VC_IMAGE_RGBA32, (w > 16 ? w : 17), h, &img_p);
+	cursor->resource = vc_dispmanx_resource_create(VC_IMAGE_RGBA32, w, h, &img_p);
 	if (cursor->resource == 0) {
 		free(image);
 		free(cursor);
@@ -236,7 +235,7 @@ cursor_t *createCursor(STATE_T * state, const uint32_t * data, uint32_t w, uint3
 		data += incr;
 	}
 
-	VC_RECT_T dst_rect = { 0, 0, w, h };
+	VC_RECT_T dst_rect = { .width = w, h };
 	vc_dispmanx_resource_write_data(cursor->resource, VC_IMAGE_RGBA32, pitch, image, &dst_rect);
 	free(image);
 	cursor->state.element = 0;
@@ -322,11 +321,11 @@ void screenBrightness(STATE_T * state, uint32_t level) {
         VC_RECT_T src_rect, dst_rect;
 	if (!brightnessLayer) {
 		uint32_t img_p;
-		brightnessLayer = vc_dispmanx_resource_create(VC_IMAGE_RGBA32, 32, 16, &img_p);
+		brightnessLayer = vc_dispmanx_resource_create(VC_IMAGE_RGBA32, 1, 1, &img_p);
 		if (!brightnessLayer)
 			return;
                 uint32_t image = 0;
-		vc_dispmanx_rect_set(&dst_rect, 0, 0, 1, 1);
+                dst_rect = (VC_RECT_T){ .width = 1, 1 };
 		ret = vc_dispmanx_resource_write_data(brightnessLayer, VC_IMAGE_RGBA32, sizeof image, &image, &dst_rect);
                 if (!ret) {
                         vc_dispmanx_resource_delete(brightnessLayer);
@@ -359,8 +358,9 @@ void screenBrightness(STATE_T * state, uint32_t level) {
 			alpha.opacity = 255 - level;
 
 			update = vc_dispmanx_update_start(0);
-			vc_dispmanx_rect_set(&dst_rect, 0, 0, state->screen_width, state->screen_height);
-			vc_dispmanx_rect_set(&src_rect, 0, 0, 1 << 16, 1 << 16);
+                        src_rect = (VC_RECT_T){ .width = 1<<16, 1<<16 };
+                        dst_rect = (VC_RECT_T){ .width = state->screen_width,
+                                                state->screen_height };
 			brightnessElement = vc_dispmanx_element_add(update,
 								    state->dmx_display,
 								    255, &dst_rect,
