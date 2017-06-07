@@ -36,7 +36,7 @@ extern "C" {
 	extern void Arc(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat);
 	extern void Image(VGfloat, VGfloat, VGint, VGint, const char *);
 	extern void Start(VGint, VGint);
-	extern bool End();
+	extern bool End(void);
 	extern bool SaveEnd(const char *);
 	extern void Background(VGuint, VGuint, VGuint);
 	// Deprecate BackgroundRGB, should really be BackgroundRGBA
@@ -44,12 +44,12 @@ extern "C" {
 	extern void BackgroundRGBA(VGuint, VGuint, VGuint, VGfloat);
 	// Deprecate non capitalised function names
 	extern bool init(int32_t *, int32_t *) DEPRECATED;
-	extern void finish() DEPRECATED;
+	extern void finish(void) DEPRECATED;
 	extern void setfill(VGfloat[4]) DEPRECATED;
 	extern void setstroke(VGfloat[4]) DEPRECATED;
 	// New function names
 	extern bool InitShapes(int32_t *, int32_t *);
-	extern void FinishShapes();
+	extern void FinishShapes(void);
 	extern void SetFill(VGfloat[4]);
 	extern void SetStroke(VGfloat[4]);
 
@@ -61,31 +61,31 @@ extern "C" {
 	extern void FillLinearGradient(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat *, VGint);
 	extern void FillRadialGradient(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat *, VGint);
 	extern void ClipRect(VGint x, VGint y, VGint w, VGint h);
-	extern void ClipEnd();
+	extern void ClipEnd(void);
 	// Deprecate non capitalised function names
 	extern Fontinfo loadfont(const int *, const int *, const unsigned char *, const int *, const int *, const int *,
 				 const short *, int, int, int) DEPRECATED;
 	extern void unloadfont(Fontinfo) DEPRECATED;
 	extern void makeimage(VGfloat, VGfloat, VGint, VGint, VGubyte *) DEPRECATED;
-	extern void saveterm() DEPRECATED;
-	extern void restoreterm() DEPRECATED;
-	extern void rawterm() DEPRECATED;
+	extern void saveterm(void) DEPRECATED;
+	extern void restoreterm(void) DEPRECATED;
+	extern void rawterm(void) DEPRECATED;
 	extern VGImage createImageFromJpeg(const char *) DEPRECATED;
 	// New function names
 	extern Fontinfo LoadFont(const int *, const int *, const unsigned char *, const int *, const int *, const int *,
 				 const short *, int, int, int);
 	extern void UnloadFont(Fontinfo);
 	extern void MakeImage(VGfloat, VGfloat, VGint, VGint, VGubyte *);
-	extern void SaveTerm();
-	extern void RestoreTerm();
-	extern void RawTerm();
+	extern void SaveTerm(void);
+	extern void RestoreTerm(void);
+	extern void RawTerm(void);
 	extern VGImage CreateImageFromJpeg(const char *);
 
 	// Added by Paeryn
 	extern void initWindowSize(int32_t x, int32_t y, int32_t w, int32_t h) DEPRECATED;
 	extern void InitWindowSize(int32_t x, int32_t y, int32_t w, int32_t h);
 	extern void EnableOpenVGErrorCheck(bool check);
-	extern uint32_t CheckErrorStatus();
+	extern uint32_t CheckErrorStatus(void);
 	extern Fontinfo LoadTTFFile(const char *fname);
 	extern Fontinfo LoadTTF(const char *font_style);
 	extern void UnloadTTF(Fontinfo f);
@@ -95,14 +95,14 @@ extern "C" {
 	extern VGfloat TextLineHeight(Fontinfo f, VGint pointsize);
 
 	extern void AreaClear(VGint x, VGint y, VGint w, VGint h);
-	extern void WindowClear();
+	extern void WindowClear(void);
 	extern void WindowOpacity(uint32_t alpha);
 	extern void WindowPosition(int32_t x, int32_t y);
 	extern bool WindowSaveAsPng(const char *filename, VGint x, VGint y, VGint w, VGint h, int zlib_level);
 	extern VGImage CreateImageFromPng(const char *filename);
 	extern void DrawImageAt(VGfloat x, VGfloat y, VGImage image);
 	extern void DrawImageAtFit(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGImage image);
-	extern void CopyMatrixPathToImage();
+	extern void CopyMatrixPathToImage(void);
 
 	// Outline shapes
 	extern void CbezierOutline(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat);
@@ -138,13 +138,15 @@ extern "C" {
 	// Cursor
 	extern bool CreateCursor(uint32_t * data, uint32_t width, uint32_t height, uint32_t hot_x, uint32_t hot_y);
 	extern bool CreateCursorFromVGImage(VGImage img, uint32_t hot_x, uint32_t hot_y);
-	extern void ShowCursor();
-	extern void HideCursor();
+	extern void ShowCursor(void);
+	extern void HideCursor(void);
 	extern void MoveHWCursor(int32_t x, int32_t y);
 	extern void MoveCursor(int32_t x, int32_t y);
-	extern void DeleteCursor();
+	extern void DeleteCursor(void);
 	extern void ScreenBrightness(uint32_t level);
-
+        extern bool SetRenderTargetImage(VGImage image);
+        extern bool ReleaseRenderTargetImage(VGImage image);
+        
 #undef DEPRECATED
 #if defined(__cplusplus)
 }

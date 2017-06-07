@@ -67,17 +67,17 @@ static struct termios new_term_attr;
 static struct termios orig_term_attr;
 
 // saveterm saves the current terminal settings
-void SaveTerm() {
+void SaveTerm(void) {
 	tcgetattr(fileno(stdin), &orig_term_attr);
 }
 
 // Deprecated
-void saveterm() {
+void saveterm(void) {
 	SaveTerm();
 }
 
 // rawterm sets the terminal to raw mode
-void RawTerm() {
+void RawTerm(void) {
 	memcpy(&new_term_attr, &orig_term_attr, sizeof(struct termios));
 	new_term_attr.c_lflag &= ~(ICANON | ECHO | ECHOE | ECHOK | ECHONL | ECHOPRT | ECHOKE | ICRNL);
 	new_term_attr.c_cc[VTIME] = 0;
@@ -86,17 +86,17 @@ void RawTerm() {
 }
 
 // Deprecated
-void rawterm() {
+void rawterm(void) {
 	RawTerm();
 }
 
 // restore resets the terminal to the previously saved setting
-void RestoreTerm() {
+void RestoreTerm(void) {
 	tcsetattr(fileno(stdin), TCSANOW, &orig_term_attr);
 }
 
 // Deprecated
-void restoreterm() {
+void restoreterm(void) {
 	RestoreTerm();
 }
 
@@ -517,7 +517,7 @@ void EnableOpenVGErrorCheck(bool check) {
 }
 
 // Check status of OpenVG errors, if none had been reported then check
-uint32_t CheckErrorStatus() {
+uint32_t CheckErrorStatus(void) {
 	uint32_t err = vg_error_code;
 	// If no current error then check if one has happened
 	if (err == VG_NO_ERROR)
@@ -528,7 +528,7 @@ uint32_t CheckErrorStatus() {
 }
 
 // finish cleans up
-void FinishShapes() {
+void FinishShapes(void) {
         ScreenBrightness(255);
 	DeleteCursor();
 	eglSwapBuffers(state->display, state->surface);
@@ -557,7 +557,7 @@ void FinishShapes() {
 }
 
 // Deprecated
-void finish() {
+void finish(void) {
 	FinishShapes();
 }
 
@@ -698,7 +698,7 @@ void ClipRect(VGint x, VGint y, VGint w, VGint h) {
 }
 
 // ClipEnd stops limiting drawing area to specified rectangle
-void ClipEnd() {
+void ClipEnd(void) {
 	vgSeti(VG_SCISSORING, VG_FALSE);
 }
 
@@ -853,7 +853,7 @@ VGfloat TextLineHeight(Fontinfo f, VGint pointsize) {
 // Changed capabilities as others not needed at the moment - allows possible
 // driver optimisations.
 // Changed again to just clear out and re-use a common path.
-static inline VGPath newpath() {
+static inline VGPath newpath(void) {
 	vgClearPath(common_path, VG_PATH_CAPABILITY_APPEND_TO);
 	return common_path;
 }
@@ -971,7 +971,7 @@ void Start(VGint width, VGint height) {
 
 // End checks for errors (if enabled) and renders to the display,
 // returns false if an error was detected. 
-bool End() {
+bool End(void) {
 	bool success = true;
 	if (check_errors) {
 		vg_error_code = vgGetError();
@@ -1037,7 +1037,7 @@ void BackgroundRGB(VGuint r, VGuint g, VGuint b, VGfloat a) {
 }
 
 // WindowClear clears the window to previously set background colour
-void WindowClear() {
+void WindowClear(void) {
 	vgClear(0, 0, (VGint) state->window_width, (VGint) state->window_height);
 }
 
@@ -1506,7 +1506,7 @@ void DrawImageAtFit(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGImage image) {
 //
 
 // CopyMatrixPathToImage copies the path matrix to the image matrix.
-void CopyMatrixPathToImage() {
+void CopyMatrixPathToImage(void) {
 	VGint mm = vgGeti(VG_MATRIX_MODE);
 	if (mm != VG_MATRIX_PATH_USER_TO_SURFACE)
 		vgSeti(VG_MATRIX_MODE, VG_MATRIX_PATH_USER_TO_SURFACE);
@@ -1548,11 +1548,13 @@ bool CreateCursorFromVGImage(VGImage img, uint32_t hot_x, uint32_t hot_y) {
 	return (priv_cursor != NULL);
 }
 
-void ShowCursor() {
+// Make cursor visible
+void ShowCursor(void) {
 	showCursor(priv_cursor);
 }
 
-void HideCursor() {
+// Make cursor invisible
+void HideCursor(void) {
 	hideCursor(priv_cursor);
 }
 
@@ -1566,13 +1568,43 @@ void MoveCursor(int32_t x, int32_t y) {
 	moveCursor(state, priv_cursor, x, (int32_t) state->window_height - 1 - y);
 }
 
-void DeleteCursor() {
+// Deallocates cursor
+void DeleteCursor(void) {
 	if (priv_cursor) {
 		deleteCursor(priv_cursor);
 		priv_cursor = NULL;
 	}
 }
 
+// Change screen brightness
+// level = 0 (black) -> 255 (full)
 void ScreenBrightness(uint32_t level) {
 	screenBrightness(state, level);
+}
+
+// Make the image the render target for subsequent drawing
+// Pass 0 to make the main window the target
+bool SetRenderTargetImage(VGImage image)
+{
+        EGLBoolean result = EGL_FALSE;
+        renderobj_t *entry = findRenderObj(state, image);
+        if (entry == NULL) {
+                entry = makeRenderObj(state, image);
+        }
+        if (entry != NULL)
+                result = makeRenderObjCurrent(state, entry);
+        return result == EGL_TRUE;
+}
+
+// Finish using image as a render target
+bool ReleaseRenderTargetImage(VGImage image)
+{
+        bool result = false;
+        if (image != 0) {
+                renderobj_t *entry = findRenderObj(state, image);
+                if (entry != NULL) {
+                        result = delRenderObj(state, entry);
+                }
+        }
+        return result;
 }

@@ -42,11 +42,40 @@ int main() {
         
         if (!InitShapes(&width, &height))
                 return 1;
+        EnableOpenVGErrorCheck(true);
+        
+        // Create an image to draw into
+        VGImage my_image = vgCreateImage(VG_sABGR_8888, 100, 100, VG_IMAGE_QUALITY_BETTER);
+        // Set it as the current destination for drawing
+        bool okay;
+        okay = SetRenderTargetImage(my_image);
+        if (!okay) {
+                printf("Error in setting render target\n");
+        }
+        else {
+                Start(100, 100);
+                BackgroundRGBA(128, 128, 128, 0.25f);
+                Fill(255, 0, 0, 0.75f);
+                Circle(50.0f, 50.0f, 40.0f);
+                // Flush the drawing queue (not technically needed)
+                vgFlush();
+                // Set the main window back to the destination for drawing
+                okay = SetRenderTargetImage(0);
+                if (!okay) {
+                        printf("Error restoring main rendering context\n");
+                }
+                // Free up the rendering context of the image when you no
+                // longer need to draw to the image
+                okay = ReleaseRenderTargetImage(my_image);
+                if (!okay) {
+                        printf("Error releasing render target\n");
+                }
+        }
         
 	Start(width, height);
-	Background(0, 0, 0);
+        Background(0, 0, 0);
         Fill(44, 77, 232, 1);
-        
+
         int32_t desert_w, desert_h, cursor_w, cursor_h;
         VGImage desert = CreateImageFromJpeg("desert1.jpg");
         if (desert == VG_INVALID_HANDLE)
@@ -67,8 +96,8 @@ int main() {
                 VGfloat desertw = (VGfloat)desert_w;
                 VGfloat deserth = (VGfloat)desert_h;
                 VGfloat min_sw = 2.0f;
-                VGfloat max_sw = desertw * 2.0f;
-                VGfloat scaled_ratio = deserth / desertw;
+                VGfloat max_sw = 100 * 2.0f;
+                VGfloat scaled_ratio = 1;
                 VGfloat scaled_w = min_sw;
                 VGfloat scaled_inc = 2.0f;
                 VGfloat rot_angle = 0.0f;
@@ -98,7 +127,7 @@ int main() {
                         VGfloat scaled_h = scaled_w * scaled_ratio;
                         VGfloat xpos = ((VGfloat)width - scaled_w) / 2.0f;
                         VGfloat ypos = ((VGfloat)height - scaled_h) / 2.0f;
-                        DrawImageAtFit(xpos, ypos, scaled_w, scaled_h, desert);
+                        DrawImageAtFit(xpos, ypos, scaled_w, scaled_h, my_image);
                         scaled_w += scaled_inc;
                         if (scaled_w < min_sw || scaled_w > max_sw) {
                                 scaled_w -= scaled_inc;
@@ -117,7 +146,7 @@ int main() {
                                 fprintf(stderr, "Error @ count = %d\n", count);
                                 break;
                         }
-			ScreenBrightness(count * 4) % 255);
+//			ScreenBrightness((count * 4) % 255);
                 }
                 DeleteCursor();
         }
@@ -126,6 +155,7 @@ int main() {
         // that and are exiting anyway.
         vgDestroyImage(cursor);
         vgDestroyImage(desert);
-	FinishShapes();
+        vgDestroyImage(my_image);
+        FinishShapes();
 	return 0;
 }

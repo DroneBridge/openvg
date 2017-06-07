@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <EGL/egl.h>
+#include <VG/openvg.h>
 #include "eglstate.h"
 #include <bcm_host.h>
 #include <assert.h>
@@ -74,8 +75,6 @@ void oglinit(STATE_T * state) {
 	EGLBoolean result;
 	EGLint num_config;
 
-	static EGL_DISPMANX_WINDOW_T nativewindow;
-
 	DISPMANX_ELEMENT_HANDLE_T dispman_element;
 	DISPMANX_DISPLAY_HANDLE_T dispman_display;
 	DISPMANX_UPDATE_HANDLE_T dispman_update;
@@ -92,6 +91,7 @@ void oglinit(STATE_T * state) {
 		EGL_BLUE_SIZE, 8,
 		EGL_ALPHA_SIZE, 8,
 		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+                EGL_RENDERABLE_TYPE, EGL_OPENVG_BIT,
 		EGL_NONE
 	};
 
@@ -139,9 +139,10 @@ void oglinit(STATE_T * state) {
 						  0 /*transform */ );
 
 	state->element = dispman_element;
-	nativewindow.element = dispman_element;
-	nativewindow.width = state->window_width;
-	nativewindow.height = state->window_height;
+	static EGL_DISPMANX_WINDOW_T nativewindow;
+        nativewindow.element = dispman_element;
+        nativewindow.width = state->window_width;
+        nativewindow.height = state->window_height;
 	vc_dispmanx_update_submit_sync(dispman_update);
 
 	state->surface = eglCreateWindowSurface(state->display, config, &nativewindow, NULL);
@@ -154,6 +155,10 @@ void oglinit(STATE_T * state) {
 	// connect the context to the surface
 	result = eglMakeCurrent(state->display, state->surface, state->surface, state->context);
 	assert(EGL_FALSE != result);
+
+        // Create base render object (the window)
+        state->render_list = NULL;
+        addRenderObj(state, 0, state->surface, state->context);
 }
 
 // dispmanMoveWindow repositions the openVG window to given coords
@@ -325,9 +330,9 @@ void screenBrightness(STATE_T * state, uint32_t level) {
 		if (!brightnessLayer)
 			return;
                 uint32_t image = 0;
-                dst_rect = (VC_RECT_T){ .width = 1, 1 };
+                vc_dispmanx_rect_set(&dst_rect, 0, 0, 1, 1);
 		ret = vc_dispmanx_resource_write_data(brightnessLayer, VC_IMAGE_RGBA32, sizeof image, &image, &dst_rect);
-                if (!ret) {
+                if (ret) {
                         vc_dispmanx_resource_delete(brightnessLayer);
                         brightnessLayer = 0;
                         return;
@@ -351,23 +356,131 @@ void screenBrightness(STATE_T * state, uint32_t level) {
 							      0, DISPMANX_NO_ROTATE);
 			vc_dispmanx_update_submit_sync(update);
 		} else {
-			static VC_DISPMANX_ALPHA_T alpha = {
+			VC_DISPMANX_ALPHA_T alpha = {
 				DISPMANX_FLAGS_ALPHA_FIXED_ALL_PIXELS,
-				255, 0
+				255 - level, 0
 			};
-			alpha.opacity = 255 - level;
-
 			update = vc_dispmanx_update_start(0);
-                        src_rect = (VC_RECT_T){ .width = 1<<16, 1<<16 };
-                        dst_rect = (VC_RECT_T){ .width = state->screen_width,
-                                                state->screen_height };
+                        vc_dispmanx_rect_set(&src_rect, 0, 0, 1 << 16, 1 << 16);
+                        vc_dispmanx_rect_set(&dst_rect, 0, 0,
+                                             state->screen_width,
+                                             state->screen_height);
 			brightnessElement = vc_dispmanx_element_add(update,
-								    state->dmx_display,
-								    255, &dst_rect,
-								    brightnessLayer,
-								    &src_rect,
-								    DISPMANX_PROTECTION_NONE, &alpha, NULL, VC_IMAGE_ROT0);
+                                                                    state->dmx_display,
+                                                                    255, &dst_rect,
+                                                                    brightnessLayer,
+                                                                    &src_rect,
+                                                                    DISPMANX_PROTECTION_NONE, &alpha, NULL, VC_IMAGE_ROT0);
 			vc_dispmanx_update_submit_sync(update);
 		}
 	}
+}
+
+// OpenVG drawable images
+renderobj_t *makeRenderObj(STATE_T *state, VGImage image)
+{
+        static const EGLint attribute_list[] = {
+                EGL_RED_SIZE, 8,
+                EGL_GREEN_SIZE, 8,
+                EGL_BLUE_SIZE, 8,
+		EGL_ALPHA_SIZE, 8,
+		EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
+                EGL_RENDERABLE_TYPE, EGL_OPENVG_BIT,
+		EGL_NONE
+	};
+        EGLContext context;
+        EGLConfig config;
+        EGLBoolean result;
+        EGLint num_configs;
+        result = eglChooseConfig(state->display, attribute_list,
+                                 &config, 1, &num_configs);
+        if (result == EGL_FALSE)
+                return NULL;
+        context = eglCreateContext(state->display, config,
+                                   state->context, NULL);
+        if (context == NULL)
+                return NULL;
+
+        EGLSurface surface;
+        surface = eglCreatePbufferFromClientBuffer(state->display,
+                                                   EGL_OPENVG_IMAGE,
+                                                   (EGLClientBuffer)image,
+                                                   config, NULL);
+        if (surface == NULL) {
+                eglDestroyContext(state->display, context);
+                return NULL;
+        }
+        
+        renderobj_t *obj = addRenderObj(state, image, context, surface);
+        if (obj == NULL) {
+                eglDestroySurface(state->display, surface);
+                eglDestroyContext(state->display, context);
+        }
+        return obj;
+}
+
+renderobj_t *addRenderObj(STATE_T *state, VGImage image,
+                          EGLContext context, EGLSurface surface)
+{
+        renderobj_t *entry = malloc(sizeof *entry);
+        if (entry != NULL) {
+                entry->image = image;
+                entry->context = context;
+                entry->surface = surface;
+                entry->prev = NULL;
+                entry->next = state->render_list;
+                if (state->render_list != NULL)
+                        state->render_list->prev = entry;
+                state->render_list = entry;
+        }
+        return entry;
+}
+
+bool delRenderObj(STATE_T *state, renderobj_t *entry)
+{
+        if (entry->image == 0)
+                return false;
+
+        if (eglGetCurrentContext() == entry->context)
+                return false;
+
+        EGLBoolean result;
+        result = eglDestroySurface(state->display, entry->surface);
+        if (result == EGL_FALSE)
+                return false;
+        result = eglDestroyContext(state->display, entry->context);
+        if (result == EGL_FALSE) {
+                entry->surface = 0; // We did free the surface
+                return false;
+        }
+                
+        renderobj_t *prev = entry->prev;
+        renderobj_t *next = entry->next;
+        if (next != NULL)
+                next->prev = prev;
+        if (prev != NULL)
+                prev->next = next;
+        else
+                state->render_list = next;
+        free(entry);
+        return true;
+}
+
+renderobj_t *findRenderObj(STATE_T *state, VGImage image)
+{
+        renderobj_t *curr = state->render_list;
+        while (curr != NULL && curr->image != image)
+                curr = curr->next;
+        return curr;
+}
+
+EGLBoolean makeRenderObjCurrent(STATE_T *state, renderobj_t *entry)
+{
+        EGLBoolean result = EGL_FALSE;
+        
+        if (state->display && entry->surface && entry->context) {
+                result = eglMakeCurrent(state->display, entry->surface,
+                                        entry->surface, entry->context);
+        }
+        return result;
 }

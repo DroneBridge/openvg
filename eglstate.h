@@ -1,3 +1,17 @@
+#ifndef LIBSHAPES_EGLSTATE_H
+#define LIBSHAPES_EGLSTATE_H
+
+#include <stdbool.h>
+#include <VG/openvg.h>
+
+typedef struct renderobj_t {
+        struct renderobj_t *prev;
+        struct renderobj_t *next;
+        VGImage image;
+        EGLContext context;
+        EGLSurface surface;
+} renderobj_t;
+
 typedef struct {
 	// Screen dimentions
 	uint32_t screen_width;
@@ -11,12 +25,12 @@ typedef struct {
 	DISPMANX_ELEMENT_HANDLE_T element;
         // dispman display
         DISPMANX_DISPLAY_HANDLE_T dmx_display;
-        
 	// EGL data
 	EGLDisplay display;
-
 	EGLSurface surface;
 	EGLContext context;
+        // Renderable surfaces
+        renderobj_t *render_list;
 } STATE_T;
 
 typedef struct cursor_t {
@@ -27,12 +41,23 @@ typedef struct cursor_t {
     int32_t hot_y;
 } cursor_t;
 
+
 extern void oglinit(STATE_T *);
 extern void dispmanMoveWindow(STATE_T *, int, int);
 extern void dispmanChangeWindowOpacity(STATE_T *, unsigned int);
-extern cursor_t *createCursor(STATE_T *state, const uint32_t *data, uint32_t w, uint32_t h, uint32_t hx, uint32_t hy, bool upsidedown);
+extern cursor_t *createCursor(STATE_T *state, const uint32_t *data,
+                              uint32_t w, uint32_t h,
+                              uint32_t hx, uint32_t hy, bool upsidedown);
 extern void showCursor(cursor_t *cursor);
 extern void hideCursor(cursor_t *cursor);
 extern void moveCursor(STATE_T *state, cursor_t *cursor, int32_t x, int32_t y);
 extern void deleteCursor(cursor_t *cursor);
 extern void screenBrightness(STATE_T *state, uint32_t level);
+extern renderobj_t *makeRenderObj(STATE_T *state, VGImage image);
+extern renderobj_t *addRenderObj(STATE_T *state, VGImage image,
+                                 EGLContext context, EGLSurface surface);
+extern bool delRenderObj(STATE_T *state, renderobj_t *entry);
+extern renderobj_t *findRenderObj(STATE_T *state, VGImage image);
+extern EGLBoolean makeRenderObjCurrent(STATE_T *state, renderobj_t *entry);
+
+#endif
