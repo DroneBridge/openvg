@@ -20,11 +20,6 @@ int main(int argc, char *argv[]) {
 	setlocale(LC_CTYPE, "");
 	InitShapes(&width, &height);				   // Graphics
                                                            // initialization
-        if (vg_error) {
-                FinishShapes();
-                return -1;
-        }
-     
 	Start(width, height);				   // Start the picture
 
 	// Dynamically load a font, pass the font name on the command
@@ -76,8 +71,6 @@ int main(int argc, char *argv[]) {
         StrokeWidth(1);
         Line(20+font_width, 80, 20+font_width, 80+2*font_height);
         End();						   // End the picture
-        if (vg_error)
-                printf("oops, an error occured in libshapes (%d).\n", vg_error);
         
 	fgets(s, 2, stdin);				   // look at the pic, end with [RETURN]
 

@@ -96,8 +96,8 @@ extern "C" {
 
 	extern void AreaClear(VGint x, VGint y, VGint w, VGint h);
 	extern void WindowClear(void);
-	extern void WindowOpacity(uint32_t alpha);
-	extern void WindowPosition(int32_t x, int32_t y);
+	extern void WindowOpacity(void *window, uint32_t alpha);
+	extern void WindowPosition(void *window, int32_t x, int32_t y);
 	extern bool WindowSaveAsPng(const char *filename, VGint x, VGint y, VGint w, VGint h, int zlib_level);
 	extern VGImage CreateImageFromPng(const char *filename);
 	extern void DrawImageAt(VGfloat x, VGfloat y, VGImage image);
@@ -144,9 +144,13 @@ extern "C" {
 	extern void MoveCursor(int32_t x, int32_t y);
 	extern void DeleteCursor(void);
 	extern void ScreenBrightness(uint32_t level);
-        extern bool SetRenderTargetImage(VGImage image);
-        extern bool ReleaseRenderTargetImage(VGImage image);
-        
+        extern void *CreateRenderTargetToImage(VGImage image);
+        extern void *CreateRenderTargetWindow(int32_t layer,
+                                              int32_t x, int32_t y,
+                                              uint32_t width, uint32_t height);
+        extern void ChangeWindowLayer(void *target, int32_t layer);
+        extern bool SetRenderTarget(void *target);
+        extern bool DeleteRenderTarget(void *target);
 #undef DEPRECATED
 #if defined(__cplusplus)
 }

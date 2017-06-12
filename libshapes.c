@@ -139,11 +139,13 @@ Fontinfo LoadFont(const int *Points,
 
 			path = vgCreatePath(VG_PATH_FORMAT_STANDARD,
 					    VG_PATH_DATATYPE_S_32,
-					    1.0f / 65536.0f, 0.0f, ic, p_count, VG_PATH_CAPABILITY_APPEND_TO);
+					    1.0f / 65536.0f, 0.0f, ic, p_count,
+                                            VG_PATH_CAPABILITY_APPEND_TO);
 			if (path != VG_INVALID_HANDLE)
 				vgAppendPathData(path, ic, instructions, p);
 		}
-		vgSetGlyphToPath(font, (VGuint) i, path, VG_FALSE, origin, escapement);
+		vgSetGlyphToPath(font, (VGuint) i, path, VG_FALSE, origin,
+                                 escapement);
 		if (path != VG_INVALID_HANDLE)
 			vgDestroyPath(path);
 	}
@@ -165,7 +167,8 @@ Fontinfo loadfont(const int *Points,
 		  const int *PointIndices,
 		  const unsigned char *Instructions,
 		  const int *InstructionIndices, const int *InstructionCounts,
-		  const int *adv, const short *cmap, int ng, int descender, int ascender) {
+		  const int *adv, const short *cmap, int ng, int descender,
+                  int ascender) {
 	return LoadFont(Points, PointIndices, Instructions, InstructionIndices,
 			InstructionCounts, adv, cmap, ng, descender, ascender);
 }
@@ -299,7 +302,7 @@ void MakeImage(VGfloat x, VGfloat y, VGint w, VGint h, VGubyte * data) {
 	VGImageFormat rgbaFormat = VG_sABGR_8888;
 	VGImage img = vgCreateImage(rgbaFormat, w, h, VG_IMAGE_QUALITY_BETTER);
 	if (img != VG_INVALID_HANDLE) {
-		vgImageSubData(img, (void *)data, dstride, rgbaFormat, 0, 0, w, h);
+		vgImageSubData(img, data, dstride, rgbaFormat, 0, 0, w, h);
 		vgSetPixels((VGint) x, (VGint) y, img, 0, 0, w, h);
 		vgDestroyImage(img);
 	} else
@@ -328,10 +331,10 @@ void image(VGfloat x, VGfloat y, VGint w, VGint h, const char *filename) {
 
 // dumpscreen writes the raster
 static void dumpscreen(VGuint w, VGuint h, FILE * fp) {
-	if (w > state->window_width)
-		w = state->window_width;
-	if (h > state->window_height)
-		h = state->window_height;
+	if (w > state->render_target->window.width)
+		w = state->render_target->window.width;
+	if (h > state->render_target->window.height)
+		h = state->render_target->window.height;
 	void *ScreenBuffer = malloc(w * h * 4);
 	if (ScreenBuffer) {
 		vgReadPixels(ScreenBuffer, (VGint) (w * 4), VG_sABGR_8888, 0, 0, (VGint) w, (VGint) h);
@@ -364,10 +367,10 @@ bool InitShapes(int32_t * w, int32_t * h) {
 	check_errors = false;
 	bcm_host_init();
 	memset(state, 0, sizeof(*state));
-	state->window_x = init_x;
-	state->window_y = init_y;
-	state->window_width = init_w;
-	state->window_height = init_h;
+	state->render_base.window.xpos = init_x;
+	state->render_base.window.ypos = init_y;
+	state->render_base.window.width = init_w;
+	state->render_base.window.height = init_h;
 	oglinit(state);
 	SansTypeface = LoadFont(DejaVuSans_glyphPoints,
 				DejaVuSans_glyphPointIndices,
@@ -405,8 +408,8 @@ bool InitShapes(int32_t * w, int32_t * h) {
 		MonoTypeface->Name = "DejaVu Sans Mono";
 		MonoTypeface->Style = "Book";
 	}
-	*w = (int32_t) state->window_width;
-	*h = (int32_t) state->window_height;
+	*w = (int32_t) state->render_base.window.width;
+	*h = (int32_t) state->render_base.window.height;
 
 	if (!SansTypeface || !SerifTypeface || !MonoTypeface) {
 		fputs("libshapes failed to load the default fonts.", stderr);
@@ -531,7 +534,6 @@ uint32_t CheckErrorStatus(void) {
 void FinishShapes(void) {
         ScreenBrightness(255);
 	DeleteCursor();
-	eglSwapBuffers(state->display, state->surface);
 	vgDestroyPath(dot_rough_path);
 	vgDestroyPath(dot_smooth_path);
 	vgDestroyPath(ellipse_path);
@@ -550,10 +552,7 @@ void FinishShapes(void) {
 	UnloadFont(MonoTypeface);
 	MonoTypeface = NULL;
 	font_CloseFontSystem();
-	eglMakeCurrent(state->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-	eglDestroySurface(state->display, state->surface);
-	eglDestroyContext(state->display, state->context);
-	eglTerminate(state->display);
+        oglEnd(state);
 }
 
 // Deprecated
@@ -981,7 +980,19 @@ bool End(void) {
 		}
 	}
 
-	eglSwapBuffers(state->display, state->surface);
+        switch (state->render_target->type) {
+            case RENDEROBJ_IMAGE:
+                    vgFinish();
+                    break;
+            case RENDEROBJ_MAIN:
+            case RENDEROBJ_WINDOW:
+                    eglSwapBuffers(state->egl_display,
+                                   state->render_target->window.surface);
+                    break;
+            default:
+                    fputs("Warning, libshapes End() called on invalid render target\n", stderr);
+                    break;
+        }
 	if (check_errors && eglGetError() != EGL_SUCCESS)
 		success = false;
 	return success;
@@ -990,28 +1001,19 @@ bool End(void) {
 // SaveEnd dumps the raster before rendering to the display, returns
 // false if an error was detected (if enabled).
 bool SaveEnd(const char *filename) {
-	bool success = true;
-	if (check_errors) {
-		vg_error_code = vgGetError();
-		if (vg_error_code != VG_NO_ERROR) {
-			font_error(vg_error_code, "***End()***");
-			success = false;
-		}
-	}
 	FILE *fp;
 	if (strlen(filename) == 0) {
-		dumpscreen(state->screen_width, state->screen_height, stdout);
-	} else {
+		dumpscreen(state->render_target->window.width,
+                           state->render_target->window.height, stdout);
+        } else {
 		fp = fopen(filename, "wb");
 		if (fp != NULL) {
-			dumpscreen(state->screen_width, state->screen_height, fp);
+                        dumpscreen(state->render_target->window.width,
+                                   state->render_target->window.height, fp);
 			fclose(fp);
 		}
 	}
-	eglSwapBuffers(state->display, state->surface);
-	if (check_errors && eglGetError() != EGL_SUCCESS)
-		success = false;
-	return success;
+	return End();
 }
 
 // Backgroud clears the screen to a solid background color
@@ -1019,7 +1021,8 @@ void Background(VGuint r, VGuint g, VGuint b) {
 	VGfloat colour[4];
 	RGB(r, g, b, colour);
 	vgSetfv(VG_CLEAR_COLOR, 4, colour);
-	vgClear(0, 0, (VGint) state->window_width, (VGint) state->window_height);
+	vgClear(0, 0, (VGint) state->render_target->window.width,
+                (VGint) state->render_target->window.height);
 }
 
 // BackgroundRGBA clears the screen to a background color with alpha
@@ -1027,7 +1030,9 @@ void BackgroundRGBA(VGuint r, VGuint g, VGuint b, VGfloat a) {
 	VGfloat colour[4];
 	RGBA(r, g, b, a, colour);
 	vgSetfv(VG_CLEAR_COLOR, 4, colour);
-	vgClear(0, 0, (VGint) state->window_width, (VGint) state->window_height);
+	vgClear(0, 0, (VGint) state->render_target->window.width,
+                (VGint) state->render_target->window.height);
+;
 }
 
 // Old name, doesn't match the parameters so deprecated in favour of
@@ -1038,7 +1043,8 @@ void BackgroundRGB(VGuint r, VGuint g, VGuint b, VGfloat a) {
 
 // WindowClear clears the window to previously set background colour
 void WindowClear(void) {
-	vgClear(0, 0, (VGint) state->window_width, (VGint) state->window_height);
+	vgClear(0, 0, (VGint) state->render_target->window.width,
+                (VGint) state->render_target->window.height);
 }
 
 // AreaClear clears a given rectangle in window coordinates (not affected by
@@ -1048,13 +1054,38 @@ void AreaClear(VGint x, VGint y, VGint w, VGint h) {
 }
 
 // WindowOpacity sets the  window opacity
-void WindowOpacity(uint32_t a) {
-	dispmanChangeWindowOpacity(state, a);
+void WindowOpacity(void *window, uint32_t a) {
+        renderobj_t *entry;
+        
+        if (window == NULL)
+                entry = &state->render_base;
+        else
+                entry = findRenderObj(state, window);
+        
+        if (entry != NULL && (entry->type == RENDEROBJ_MAIN ||
+                              entry->type == RENDEROBJ_WINDOW))
+                dispmanChangeWindowOpacity(&entry->window, a);
 }
 
 // WindowPosition moves the window to given position
-void WindowPosition(int32_t x, int32_t y) {
-	dispmanMoveWindow(state, x, y);
+void WindowPosition(void *window, int32_t x, int32_t y) {
+        renderobj_t *entry;
+        
+        if (window == NULL)
+                entry = &state->render_base;
+        else
+                entry = findRenderObj(state, window);
+        
+        if (entry != NULL) {
+                if (entry->type == RENDEROBJ_MAIN) {
+                        dispmanMoveWindow(state, &entry->window, x, y);
+                        if (priv_cursor != NULL)
+                                MoveHWCursor(priv_cursor->xpos, priv_cursor->ypos);
+                }
+                if (entry->type == RENDEROBJ_WINDOW)
+                        dispmanMoveWindow(state, &entry->window, x, y);
+        }
+        
 }
 
 // Outlined shapes
@@ -1308,22 +1339,25 @@ void StrokePaint(VGPaint paint) {
 
 // Take a copy of an area of the window ready for saving
 static char *grabWindow(VGint x, VGint y, VGint * w, VGint * h) {
+        VGint window_width = (VGint) state->render_target->window.width;
+        VGint window_height = (VGint) state->render_target->window.height;
+
 	// If either x,y is off screen then set to 0
-	if ((x < 0) || (x > (VGint) state->window_width))
+        if ((x < 0) || (x > window_width))
 		x = 0;
-	if ((y < 0) || (y > (VGint) state->window_height))
+        if ((y < 0) || (y > window_height))
 		y = 0;
 	// Now make sure w,h is valid, reducing if need be
 	VGint width = *w;
 	VGint height = *h;
 	if (width <= 0)
-		width = (VGint) state->window_width;
-	if ((x + width) > (VGint) state->window_width)
-		width = (VGint) state->window_width - x;
+		width = window_width;
+	if ((x + width) > window_width)
+		width = window_width - x;
 	if (height <= 0)
-		height = (VGint) state->window_height;
-	if ((y + height) > (VGint) state->window_height)
-		height = (VGint) state->window_height - y;
+		height = window_height;
+	if ((y + height) > window_height)
+		height = window_height - y;
 	*w = width;
 	*h = height;
 	char *ScreenBuffer = malloc((size_t) (width * height * 4));
@@ -1550,7 +1584,7 @@ bool CreateCursorFromVGImage(VGImage img, uint32_t hot_x, uint32_t hot_y) {
 
 // Make cursor visible
 void ShowCursor(void) {
-	showCursor(priv_cursor);
+	showCursor(state, priv_cursor);
 }
 
 // Make cursor invisible
@@ -1565,7 +1599,7 @@ void MoveHWCursor(int32_t x, int32_t y) {
 
 // Moves cursor to OpenVG coordinte (origin bottom-left)
 void MoveCursor(int32_t x, int32_t y) {
-	moveCursor(state, priv_cursor, x, (int32_t) state->window_height - 1 - y);
+	moveCursor(state, priv_cursor, x, (int32_t) state->render_base.window.height - 1 - y);
 }
 
 // Deallocates cursor
@@ -1582,29 +1616,53 @@ void ScreenBrightness(uint32_t level) {
 	screenBrightness(state, level);
 }
 
-// Make the image the render target for subsequent drawing
-// Pass 0 to make the main window the target
-bool SetRenderTargetImage(VGImage image)
+// Create a render object to a VGImage
+void *CreateRenderTargetToImage(VGImage image)
 {
-        EGLBoolean result = EGL_FALSE;
-        renderobj_t *entry = findRenderObj(state, image);
+        renderobj_t *entry = findRenderObjImage(state, image);
         if (entry == NULL) {
-                entry = makeRenderObj(state, image);
+                entry = makeRenderObjImage(state, image);
         }
-        if (entry != NULL)
-                result = makeRenderObjCurrent(state, entry);
-        return result == EGL_TRUE;
+        return entry;
 }
 
-// Finish using image as a render target
-bool ReleaseRenderTargetImage(VGImage image)
+void *CreateRenderTargetWindow(int32_t layer, int32_t x, int32_t y,
+                      uint32_t width, uint32_t height)
+{
+        renderobj_t *obj = makeRenderObjWindow(state, layer,
+                                               x, y, width, height);
+        return obj;
+}
+
+void ChangeWindowLayer(void *target, int32_t layer)
+{
+        renderobj_t *entry = findRenderObj(state, target);
+        if (entry != NULL && entry->type == RENDEROBJ_WINDOW) {
+                changeWindowLayer(target, layer);
+        }
+}
+
+
+bool SetRenderTarget(void *target)
 {
         bool result = false;
-        if (image != 0) {
-                renderobj_t *entry = findRenderObj(state, image);
-                if (entry != NULL) {
-                        result = delRenderObj(state, entry);
-                }
+        renderobj_t *entry = target;
+        if (entry == NULL)
+                entry = &state->render_base;
+        else
+                entry = findRenderObj(state, target);
+
+        if (entry != NULL && entry->type != RENDEROBJ_NONE)
+                result = makeRenderObjCurrent(state, entry);
+        return result;
+}
+
+bool DeleteRenderTarget(void *target)
+{
+        bool result = false;
+        renderobj_t *entry = findRenderObj(state, target);
+        if (entry != NULL) {
+                result = delRenderObj(state, entry);
         }
         return result;
 }

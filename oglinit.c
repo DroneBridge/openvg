@@ -5,65 +5,75 @@
 #include <bcm_host.h>
 #include <assert.h>
 
-// setWindowParams sets the window's position, adjusting if need be to
-// prevent it from going fully off screen. Also sets the dispman rects
-// for displaying.
-static void setWindowParams(STATE_T * state, int32_t x, int32_t y, VC_RECT_T * src_rect, VC_RECT_T * dst_rect) {
+// setWindowParams sets the dispmanx rects used for displaying the windows,
+// Need to prevent it from going fully off screen.
+static void setWindowParams(STATE_T * state, window_t * window, VC_RECT_T * src_rect, VC_RECT_T * dst_rect) {
 	uint32_t dx, dy, w, h, sx, sy;
+        int32_t min_x, min_y, max_x, max_y;
 
+        if (window == &state->render_base.window) {
+                min_x = 0;
+                min_y = 0;
+                max_x = state->screen_width;
+                max_y = state->screen_height;
+        }
+        else {
+                min_x = state->render_base.window.xpos;
+                min_y = state->render_base.window.ypos;
+                max_x = state->render_base.window.width + min_x;
+                max_y = state->render_base.window.height + min_y;
+        }
+                
 	// Set source & destination rectangles so that the image is
-	// clipped if it goes off screen (else dispman won't show it properly)
-	if (x < (1 - (int)state->window_width)) {	   // Too far off left
-		x = 1 - (int)state->window_width;
-		dx = 0;
-		sx = state->window_width - 1;
+	// clipped if it goes off screen.
+	if (window->xpos < (min_x + 1 - (int)window->width)) {   // Too far off left
+		window->xpos = min_x + 1 - (int)window->width;
+		dx = min_x;
+		sx = window->width - 1;
 		w = 1;
-	} else if (x < 0) {				   // Part of left is off
-		dx = 0;
-		sx = -x;
-		w = state->window_width - sx;
-	} else if (x < (int)(state->screen_width - state->window_width)) {	// On
-		dx = x;
+	} else if (window->xpos < min_x) {			   // Part of left is off
+		dx = min_x;
+		sx = min_x - window->xpos;
+		w = window->width - sx;
+	} else if (window->xpos < (int)(max_x - window->width)) {	// On
+		dx = window->xpos;
 		sx = 0;
-		w = state->window_width;
-	} else if (x < (int)state->screen_width) {	   // Part of right is off
-		dx = x;
+		w = window->width;
+	} else if (window->xpos < max_x) {	   // Part of right is off
+		dx = window->xpos;
 		sx = 0;
-		w = state->screen_width - x;
+		w = max_x - window->xpos;
 	} else {					   // Too far off right
-		x = state->screen_width - 1;
+		window->xpos = max_x - 1;
 		dx = state->screen_width - 1;
 		sx = 0;
 		w = 1;
 	}
 
-	if (y < (1 - (int)state->window_height)) {	   // Too far off top
-		y = 1 - (int)state->window_height;
-		dy = 0;
-		sy = state->window_height - 1;
+	if (window->ypos < (min_y + 1 - (int)window->height)) {	   // Too far off top
+		window->ypos = min_y + 1 - (int)window->height;
+		dy = min_y;
+		sy = window->height - 1;
 		h = 1;
-	} else if (y < 0) {				   // Part of top is off
-		dy = 0;
-		sy = -y;
-		h = state->window_height - sy;
-	} else if (y < (int)(state->screen_height - state->window_height)) {	// On
-		dy = y;
+	} else if (window->ypos < min_y) {				   // Part of top is off
+		dy = min_y;
+		sy = min_y - window->ypos;
+		h = window->height - sy;
+	} else if (window->ypos < (int)(max_y - window->height)) {	// On
+		dy = window->ypos;
 		sy = 0;
-		h = state->window_height;
-	} else if (y < (int)state->screen_height) {	   // Part of bottom is off
-		dy = y;
+		h = window->height;
+	} else if (window->ypos < max_y) {	   // Part of bottom is off
+		dy = window->ypos;
 		sy = 0;
-		h = state->screen_height - y;
+		h = max_y - window->ypos;
 	} else {					   // Wholly off bottom
-		y = state->screen_height - 1;
-		dy = state->screen_height - 1;
+		window->ypos = max_y - 1;
+		dy = max_y - 1;
 		sy = 0;
 		h = 1;
 	}
 
-	state->window_x = x;
-	state->window_y = y;
-        
 	vc_dispmanx_rect_set(dst_rect, dx, dy, w, h);
 	vc_dispmanx_rect_set(src_rect, sx << 16, sy << 16, w << 16, h << 16);
 }
@@ -80,10 +90,6 @@ void oglinit(STATE_T * state) {
 	DISPMANX_UPDATE_HANDLE_T dispman_update;
 	VC_RECT_T dst_rect;
 	VC_RECT_T src_rect;
-	static VC_DISPMANX_ALPHA_T alpha = {
-		DISPMANX_FLAGS_ALPHA_FIXED_ALL_PIXELS,
-		255, 0
-	};
 
 	static const EGLint attribute_list[] = {
 		EGL_RED_SIZE, 8,
@@ -96,97 +102,171 @@ void oglinit(STATE_T * state) {
 	};
 
 	EGLConfig config;
-
+        window_t *window = &state->render_base.window;
+        
 	// get an EGL display connection
-	state->display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-	assert(state->display != EGL_NO_DISPLAY);
+	state->egl_display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+	assert(state->egl_display != EGL_NO_DISPLAY);
 
 	// initialize the EGL display connection
-	result = eglInitialize(state->display, NULL, NULL);
+	result = eglInitialize(state->egl_display, NULL, NULL);
 	assert(EGL_FALSE != result);
 
 	// bind OpenVG API
 	eglBindAPI(EGL_OPENVG_API);
 
 	// get an appropriate EGL frame buffer configuration
-	result = eglChooseConfig(state->display, attribute_list, &config, 1, &num_config);
+	result = eglChooseConfig(state->egl_display, attribute_list, &config,
+                                 1, &num_config);
 	assert(EGL_FALSE != result);
 
 	// create an EGL rendering context
-	state->context = eglCreateContext(state->display, config, EGL_NO_CONTEXT, NULL);
-	assert(state->context != EGL_NO_CONTEXT);
+	window->context = eglCreateContext(state->egl_display, config,
+                                           EGL_NO_CONTEXT, NULL);
+	assert(window->context != EGL_NO_CONTEXT);
 
 	// create an EGL window surface
-	success = graphics_get_display_size(0 /* LCD */ , &state->screen_width,
+	success = graphics_get_display_size(0, &state->screen_width,
 					    &state->screen_height);
 	assert(success >= 0);
 
-	if ((state->window_width == 0) || (state->window_width > state->screen_width))
-		state->window_width = state->screen_width;
-	if ((state->window_height == 0) || (state->window_height > state->screen_height))
-		state->window_height = state->screen_height;
+	if ((window->width == 0) || (window->width > state->screen_width))
+		window->width = state->screen_width;
+	if ((window->height == 0) || (window->height > state->screen_height))
+		window->height = state->screen_height;
 
 	// adjust position so that at least one pixel is on screen and
 	// set up the dispman rects
-	setWindowParams(state, state->window_x, state->window_y, &src_rect, &dst_rect);
+	setWindowParams(state, window, &src_rect, &dst_rect);
 
 	dispman_display = vc_dispmanx_display_open(0 /* LCD */ );
 	state->dmx_display = dispman_display;
 	dispman_update = vc_dispmanx_update_start(0);
 
-	dispman_element = vc_dispmanx_element_add(dispman_update, dispman_display, 0 /*layer */ , &dst_rect, 0 /*src */ ,
-						  &src_rect, DISPMANX_PROTECTION_NONE, &alpha, 0 /*clamp */ ,
-						  0 /*transform */ );
+        window->layer = 0;
+	window->alpha = (VC_DISPMANX_ALPHA_T){
+		DISPMANX_FLAGS_ALPHA_FIXED_ALL_PIXELS,
+		255, 0
+	};
+	dispman_element = vc_dispmanx_element_add(dispman_update,
+                                                  dispman_display, 0,
+                                                  &dst_rect, 0,
+						  &src_rect,
+                                                  DISPMANX_PROTECTION_NONE,
+                                                  &window->alpha, 0,
+                                                  DISPMANX_NO_ROTATE);
 
-	state->element = dispman_element;
-	static EGL_DISPMANX_WINDOW_T nativewindow;
-        nativewindow.element = dispman_element;
-        nativewindow.width = state->window_width;
-        nativewindow.height = state->window_height;
+	window->element = dispman_element;
+        window->nativewindow.element = dispman_element;
+        window->nativewindow.width = window->width;
+        window->nativewindow.height = window->height;
 	vc_dispmanx_update_submit_sync(dispman_update);
 
-	state->surface = eglCreateWindowSurface(state->display, config, &nativewindow, NULL);
-	assert(state->surface != EGL_NO_SURFACE);
+	window->surface = eglCreateWindowSurface(state->egl_display, config,
+                                                 &window->nativewindow, NULL);
+	assert(window->surface != EGL_NO_SURFACE);
 
 	// preserve the buffers on swap
-	result = eglSurfaceAttrib(state->display, state->surface, EGL_SWAP_BEHAVIOR, EGL_BUFFER_PRESERVED);
+	result = eglSurfaceAttrib(state->egl_display, window->surface,
+                                  EGL_SWAP_BEHAVIOR, EGL_BUFFER_PRESERVED);
 	assert(EGL_FALSE != result);
 
 	// connect the context to the surface
-	result = eglMakeCurrent(state->display, state->surface, state->surface, state->context);
+	result = eglMakeCurrent(state->egl_display, window->surface,
+                                window->surface, window->context);
 	assert(EGL_FALSE != result);
 
-        // Create base render object (the window)
-        state->render_list = NULL;
-        addRenderObj(state, 0, state->surface, state->context);
+        state->render_base.prev = NULL;
+        state->render_base.next = NULL;
+        state->render_base.type = RENDEROBJ_MAIN;
+        state->render_list = &state->render_base;
+        state->render_target = &state->render_base;
+}
+
+void oglEnd(STATE_T * state)
+{
+        renderobj_t *curr;
+        
+        eglMakeCurrent(state->egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE,
+                       EGL_NO_CONTEXT);
+        for(curr=state->render_list; curr != NULL; curr = curr->next) {
+                delRenderObj(state, curr);
+        }
+        
+	eglDestroySurface(state->egl_display,
+                          state->render_base.window.surface);
+	eglDestroyContext(state->egl_display,
+                          state->render_base.window.context);
+	eglTerminate(state->egl_display);
+        state->egl_display = 0;
 }
 
 // dispmanMoveWindow repositions the openVG window to given coords
 // -ve coords are allowed upto (1-width,1-height),
 // max (screen_width-1,screen_height-1). i.e. at least one pixel must be
 // on the screen.
-void dispmanMoveWindow(STATE_T * state, int32_t x, int32_t y) {
+void dispmanMoveWindow(STATE_T * state, window_t * window,
+                       int32_t x, int32_t y) {
 	VC_RECT_T src_rect, dst_rect;
-	DISPMANX_UPDATE_HANDLE_T dispman_update;
+	DISPMANX_UPDATE_HANDLE_T update;
+        bool move_sub;
+        int32_t offset_x, offset_y;
 
-	setWindowParams(state, x, y, &src_rect, &dst_rect);
-	dispman_update = vc_dispmanx_update_start(0);
-	vc_dispmanx_element_change_attributes(dispman_update, state->element, 0, 0, 0, &dst_rect, &src_rect, 0, DISPMANX_NO_ROTATE);
-	vc_dispmanx_update_submit_sync(dispman_update);
+        if (window == &state->render_base.window) {
+                offset_x = x - window->xpos;
+                offset_y = y - window->ypos;
+                window->xpos = x;
+                window->ypos = y;
+                move_sub = true;
+        }
+        else {
+                window->xpos = x + state->render_base.window.xpos;
+                window->ypos = y + state->render_base.window.ypos;
+                move_sub = false;
+        }
+
+	update = vc_dispmanx_update_start(0);
+        setWindowParams(state, window, &src_rect, &dst_rect);
+	vc_dispmanx_element_change_attributes(update,
+                                              window->element, 0, 0, 0,
+                                              &dst_rect, &src_rect, 0,
+                                              DISPMANX_NO_ROTATE);
+        if (move_sub) {
+                renderobj_t *entry;
+                for(entry = state->render_list; entry != NULL; entry = entry->next) {
+                        if (entry->type == RENDEROBJ_WINDOW) {
+                                entry->window.xpos += offset_x;
+                                entry->window.ypos += offset_y;
+                                setWindowParams(state, &entry->window,
+                                                &src_rect, &dst_rect);
+                                vc_dispmanx_element_change_attributes(update, entry->window.element, 0, 0, 0,
+                                                                      &dst_rect, &src_rect, 0, DISPMANX_NO_ROTATE);
+                        }
+                }
+        }
+        
+	vc_dispmanx_update_submit_sync(update);
+        /*****
+         * TODO: Move sub windows relative to the main window
+         *****/
 }
 
 // dispmanChangeWindowOpacity changes the window's opacity
 // 0 = transparent, 255 = opaque
-void dispmanChangeWindowOpacity(STATE_T * state, uint32_t alpha) {
+void dispmanChangeWindowOpacity(window_t * window, uint32_t alpha) {
 	DISPMANX_UPDATE_HANDLE_T dispman_update;
+        
+        if (window->alpha.flags != DISPMANX_FLAGS_ALPHA_FIXED_ALL_PIXELS)
+                return;
 
 	if (alpha > 255)
 		alpha = 255;
 
-	dispman_update = vc_dispmanx_update_start(0);
+        dispman_update = vc_dispmanx_update_start(0);
 	// The 1<<1 below means update the alpha value
-	vc_dispmanx_element_change_attributes(dispman_update, state->element, 1 << 1, 0, (uint8_t) alpha, 0, 0, 0,
-					      DISPMANX_NO_ROTATE);
+	vc_dispmanx_element_change_attributes(dispman_update, window->element,
+                                              1 << 1, 0, (uint8_t) alpha,
+                                              0, 0, 0, DISPMANX_NO_ROTATE);
 	vc_dispmanx_update_submit_sync(dispman_update);
 }
 
@@ -198,22 +278,19 @@ static inline int align_up(int x, int y) {
 
 // Create a cursor
 cursor_t *createCursor(STATE_T * state, const uint32_t * data, uint32_t w, uint32_t h, uint32_t hx, uint32_t hy, bool upsidedown) {
-	if (w == 0 || w > state->screen_width || h == 0 || h > state->screen_height || hx >= w || hy >= h)
+	if (w == 0 || w > state->render_base.window.width ||
+            h == 0 || h > state->render_base.window.height ||
+            hx >= w || hy >= h)
 		return NULL;
 	int32_t pitch = align_up(w * 4, 64);
 	cursor_t *cursor = calloc(1, sizeof *cursor);
 	if (cursor == NULL)
 		return NULL;
 
-	// Set the size of cursor and position it at top-left for now.
-	cursor->state.window_width = w;
-	cursor->state.window_height = h;
-	cursor->state.screen_width = state->window_width;
-	cursor->state.screen_height = state->window_height;
+	cursor->window.width = w;
+	cursor->window.height = h;
 	cursor->hot_x = (int32_t) hx;
 	cursor->hot_y = (int32_t) hy;
-	// Grab a copy of the dispman display
-	cursor->display = state->dmx_display;
 
 	// Copy image data
 	char *image = calloc(1, pitch * h);
@@ -222,7 +299,8 @@ cursor_t *createCursor(STATE_T * state, const uint32_t * data, uint32_t w, uint3
 		return NULL;
 	}
 	uint32_t img_p;
-	cursor->resource = vc_dispmanx_resource_create(VC_IMAGE_RGBA32, w, h, &img_p);
+	cursor->resource = vc_dispmanx_resource_create(VC_IMAGE_RGBA32,
+                                                       w, h, &img_p);
 	if (cursor->resource == 0) {
 		free(image);
 		free(cursor);
@@ -240,74 +318,78 @@ cursor_t *createCursor(STATE_T * state, const uint32_t * data, uint32_t w, uint3
 		data += incr;
 	}
 
-	VC_RECT_T dst_rect = { .width = w, h };
-	vc_dispmanx_resource_write_data(cursor->resource, VC_IMAGE_RGBA32, pitch, image, &dst_rect);
+	VC_RECT_T dst_rect = { 0, 0, w, h };
+	vc_dispmanx_resource_write_data(cursor->resource, VC_IMAGE_RGBA32,
+                                        pitch, image, &dst_rect);
 	free(image);
-	cursor->state.element = 0;
+	cursor->window.element = 0;
 	return cursor;
 }
 
 // Show the cursor on screen
-void showCursor(cursor_t * cursor) {
-	if (cursor && !cursor->state.element) {
+void showCursor(STATE_T * state, cursor_t * cursor) {
+	if (cursor && !cursor->window.element) {
 		VC_RECT_T src_rect, dst_rect;
+                DISPMANX_ELEMENT_HANDLE_T element;
 		DISPMANX_UPDATE_HANDLE_T update = vc_dispmanx_update_start(0);
-		setWindowParams(&cursor->state, cursor->state.window_x, cursor->state.window_y, &src_rect, &dst_rect);
-		cursor->state.element = vc_dispmanx_element_add(update, cursor->display,
-								1, &dst_rect,
-								cursor->resource,
-								&src_rect, DISPMANX_PROTECTION_NONE, NULL, NULL, VC_IMAGE_ROT0);
+		setWindowParams(state, &cursor->window, &src_rect, &dst_rect);
+                element = vc_dispmanx_element_add(update, state->dmx_display,
+                                                  CURSOR_LAYER, &dst_rect,
+                                                  cursor->resource, &src_rect,
+                                                  DISPMANX_PROTECTION_NONE,
+                                                  NULL, NULL, VC_IMAGE_ROT0);
+                cursor->window.element = element;
 		vc_dispmanx_update_submit_sync(update);
 	}
 }
 
 // Hide the cursor
 void hideCursor(cursor_t * cursor) {
-	if (cursor && cursor->state.element) {
+	if (cursor && cursor->window.element) {
 		DISPMANX_UPDATE_HANDLE_T update = vc_dispmanx_update_start(0);
-		vc_dispmanx_element_remove(update, cursor->state.element);
+		vc_dispmanx_element_remove(update, cursor->window.element);
 		vc_dispmanx_update_submit_sync(update);
-		cursor->state.element = 0;
+		cursor->window.element = 0;
 	}
 }
 
 // Move the cursor
 void moveCursor(STATE_T * state, cursor_t * cursor, int32_t x, int32_t y) {
-	if (cursor) {
-		if (x < 0)
-			x = 0;
-		if (x >= (int32_t) state->window_width)
-			x = (int32_t) state->window_width - 1;
-		if (y < 0)
-			y = 0;
-		if (y >= (int32_t) state->window_height)
-			y = (int32_t) state->window_height - 1;
-		VC_RECT_T src_rect, dst_rect;
-		setWindowParams(&cursor->state, x - cursor->hot_x, y - cursor->hot_y, &src_rect, &dst_rect);
-		dst_rect.x += state->window_x;
-		dst_rect.y += state->window_y;
-		if (cursor->state.element) {
-			DISPMANX_UPDATE_HANDLE_T update = vc_dispmanx_update_start(0);
-			vc_dispmanx_element_change_attributes(update,
-							      cursor->state.element,
-							      0, 0, 0, &dst_rect, &src_rect, 0, DISPMANX_NO_ROTATE);
-			vc_dispmanx_update_submit_sync(update);
-		}
+        if (x < 0)
+                x = 0;
+        if (x >= (int32_t) state->render_base.window.width)
+                x = (int32_t) state->render_base.window.width - 1;
+        if (y < 0)
+                y = 0;
+        if (y >= (int32_t) state->render_base.window.height)
+                y = (int32_t) state->render_base.window.height - 1;
+        VC_RECT_T src_rect, dst_rect;
+        cursor->xpos = x;
+        cursor->ypos = y;
+        cursor->window.xpos = state->render_base.window.xpos + x - cursor->hot_x;
+        cursor->window.ypos = state->render_base.window.ypos + y - cursor->hot_y;
+        setWindowParams(state, &cursor->window, &src_rect, &dst_rect);
+        if (cursor->window.element) {
+                DISPMANX_UPDATE_HANDLE_T update = vc_dispmanx_update_start(0);
+                vc_dispmanx_element_change_attributes(update,
+                                                      cursor->window.element,
+                                                      0, 0, 0,
+                                                      &dst_rect, &src_rect, 0,
+                                                      DISPMANX_NO_ROTATE);
+                vc_dispmanx_update_submit_sync(update);
 	}
 }
 
 // Delete a cursor
 void deleteCursor(cursor_t * cursor) {
-	if (cursor) {
-		if (cursor->state.element) {
-			DISPMANX_UPDATE_HANDLE_T update;
-			update = vc_dispmanx_update_start(0);
-			vc_dispmanx_element_remove(update, cursor->state.element);
-			vc_dispmanx_update_submit_sync(update);
-		}
-		vc_dispmanx_resource_delete(cursor->resource);
-		free(cursor);
-	}
+        if (cursor->window.element) {
+                DISPMANX_UPDATE_HANDLE_T update;
+                update = vc_dispmanx_update_start(0);
+                vc_dispmanx_element_remove(update, cursor->window.element);
+                vc_dispmanx_update_submit_sync(update);
+        }
+        vc_dispmanx_resource_delete(cursor->resource);
+        free(cursor);
 }
 
 // Dim screen
@@ -316,6 +398,10 @@ void screenBrightness(STATE_T * state, uint32_t level) {
 	static uint32_t brightnessLevel = 255;
 	static DISPMANX_RESOURCE_HANDLE_T brightnessLayer = 0;
 	static DISPMANX_ELEMENT_HANDLE_T brightnessElement = 0;
+        static VC_DISPMANX_ALPHA_T alpha = {
+                DISPMANX_FLAGS_ALPHA_FIXED_ALL_PIXELS,
+                255, 0
+        };
         int ret;
 
 	if (level > 255)
@@ -326,12 +412,16 @@ void screenBrightness(STATE_T * state, uint32_t level) {
         VC_RECT_T src_rect, dst_rect;
 	if (!brightnessLayer) {
 		uint32_t img_p;
-		brightnessLayer = vc_dispmanx_resource_create(VC_IMAGE_RGBA32, 1, 1, &img_p);
+		brightnessLayer = vc_dispmanx_resource_create(VC_IMAGE_RGBA32,
+                                                              1, 1, &img_p);
 		if (!brightnessLayer)
 			return;
                 uint32_t image = 0;
                 vc_dispmanx_rect_set(&dst_rect, 0, 0, 1, 1);
-		ret = vc_dispmanx_resource_write_data(brightnessLayer, VC_IMAGE_RGBA32, sizeof image, &image, &dst_rect);
+		ret = vc_dispmanx_resource_write_data(brightnessLayer,
+                                                      VC_IMAGE_RGBA32,
+                                                      sizeof image, &image,
+                                                      &dst_rect);
                 if (ret) {
                         vc_dispmanx_resource_delete(brightnessLayer);
                         brightnessLayer = 0;
@@ -356,28 +446,28 @@ void screenBrightness(STATE_T * state, uint32_t level) {
 							      0, DISPMANX_NO_ROTATE);
 			vc_dispmanx_update_submit_sync(update);
 		} else {
-			VC_DISPMANX_ALPHA_T alpha = {
-				DISPMANX_FLAGS_ALPHA_FIXED_ALL_PIXELS,
-				255 - level, 0
-			};
+                        alpha.opacity = 255 - level;
 			update = vc_dispmanx_update_start(0);
                         vc_dispmanx_rect_set(&src_rect, 0, 0, 1 << 16, 1 << 16);
                         vc_dispmanx_rect_set(&dst_rect, 0, 0,
                                              state->screen_width,
                                              state->screen_height);
 			brightnessElement = vc_dispmanx_element_add(update,
-                                                                    state->dmx_display,
-                                                                    255, &dst_rect,
-                                                                    brightnessLayer,
-                                                                    &src_rect,
+                                                                    state->dmx_display, DIM_LAYER, &dst_rect,
+                                                                    brightnessLayer, &src_rect,
                                                                     DISPMANX_PROTECTION_NONE, &alpha, NULL, VC_IMAGE_ROT0);
 			vc_dispmanx_update_submit_sync(update);
 		}
 	}
 }
 
-// OpenVG drawable images
-renderobj_t *makeRenderObj(STATE_T *state, VGImage image)
+////
+// OpenVG render targets
+////
+// Images
+
+// Allocate a new render object whose drawable is an OpenVG Image
+renderobj_t *makeRenderObjImage(STATE_T *state, VGImage image)
 {
         static const EGLint attribute_list[] = {
                 EGL_RED_SIZE, 8,
@@ -392,41 +482,47 @@ renderobj_t *makeRenderObj(STATE_T *state, VGImage image)
         EGLConfig config;
         EGLBoolean result;
         EGLint num_configs;
-        result = eglChooseConfig(state->display, attribute_list,
+        
+        result = eglChooseConfig(state->egl_display, attribute_list,
                                  &config, 1, &num_configs);
         if (result == EGL_FALSE)
                 return NULL;
-        context = eglCreateContext(state->display, config,
-                                   state->context, NULL);
+        context = eglCreateContext(state->egl_display, config,
+                                   state->render_base.window.context, NULL);
         if (context == NULL)
                 return NULL;
 
         EGLSurface surface;
-        surface = eglCreatePbufferFromClientBuffer(state->display,
+        surface = eglCreatePbufferFromClientBuffer(state->egl_display,
                                                    EGL_OPENVG_IMAGE,
                                                    (EGLClientBuffer)image,
                                                    config, NULL);
         if (surface == NULL) {
-                eglDestroyContext(state->display, context);
+                eglDestroyContext(state->egl_display, context);
                 return NULL;
         }
         
-        renderobj_t *obj = addRenderObj(state, image, context, surface);
-        if (obj == NULL) {
-                eglDestroySurface(state->display, surface);
-                eglDestroyContext(state->display, context);
+        renderobj_t *entry = addRenderObj(state);
+        if (entry != NULL) {
+                entry->type = RENDEROBJ_IMAGE;
+                entry->image = image;
+                entry->window.width = vgGetParameteri(image, VG_IMAGE_WIDTH);
+                entry->window.height = vgGetParameteri(image, VG_IMAGE_HEIGHT);
+                entry->window.context = context;
+                entry->window.surface = surface;
         }
-        return obj;
+        else {
+                eglDestroySurface(state->egl_display, surface);
+                eglDestroyContext(state->egl_display, context);
+        }
+        return entry;
 }
 
-renderobj_t *addRenderObj(STATE_T *state, VGImage image,
-                          EGLContext context, EGLSurface surface)
+// Allocate a render object and add it to the state's render object list
+renderobj_t *addRenderObj(STATE_T *state)
 {
-        renderobj_t *entry = malloc(sizeof *entry);
+        renderobj_t *entry = calloc(1, sizeof *entry);
         if (entry != NULL) {
-                entry->image = image;
-                entry->context = context;
-                entry->surface = surface;
                 entry->prev = NULL;
                 entry->next = state->render_list;
                 if (state->render_list != NULL)
@@ -436,24 +532,42 @@ renderobj_t *addRenderObj(STATE_T *state, VGImage image,
         return entry;
 }
 
+// Deallocate render object and remove it from the state's list.
+// This assumes that the object is in the list (it's the only list),
+// don't allow the object to be deleted if it is active.
 bool delRenderObj(STATE_T *state, renderobj_t *entry)
 {
-        if (entry->image == 0)
+        if (entry->type == RENDEROBJ_NONE || entry->type == RENDEROBJ_MAIN
+            || state->render_target == entry)
                 return false;
+//        if (eglGetCurrentContext() == entry->window.context)
+//                return false;
 
-        if (eglGetCurrentContext() == entry->context)
-                return false;
+        EGLBoolean res;
 
-        EGLBoolean result;
-        result = eglDestroySurface(state->display, entry->surface);
-        if (result == EGL_FALSE)
-                return false;
-        result = eglDestroyContext(state->display, entry->context);
-        if (result == EGL_FALSE) {
-                entry->surface = 0; // We did free the surface
-                return false;
+        if (entry->type == RENDEROBJ_WINDOW) {
+		if (entry->window.element) {
+			DISPMANX_UPDATE_HANDLE_T update;
+			update = vc_dispmanx_update_start(0);
+			vc_dispmanx_element_remove(update, entry->window.element);
+			vc_dispmanx_update_submit_sync(update);
+                        entry->window.element = 0;
+		}
         }
-                
+        
+        if (entry->type == RENDEROBJ_IMAGE || entry->type == RENDEROBJ_WINDOW) {
+                res = eglDestroySurface(state->egl_display,
+                                        entry->window.surface);
+                if (res == EGL_FALSE)
+                        return false;
+                res = eglDestroyContext(state->egl_display,
+                                        entry->window.context);
+                if (res == EGL_FALSE) {
+                        entry->window.surface = 0;
+                        return false;
+                }
+        }
+        
         renderobj_t *prev = entry->prev;
         renderobj_t *next = entry->next;
         if (next != NULL)
@@ -466,21 +580,132 @@ bool delRenderObj(STATE_T *state, renderobj_t *entry)
         return true;
 }
 
-renderobj_t *findRenderObj(STATE_T *state, VGImage image)
+// Find the render object related to the OpenVG Image in the state's list
+renderobj_t *findRenderObjImage(STATE_T *state, VGImage image)
 {
-        renderobj_t *curr = state->render_list;
-        while (curr != NULL && curr->image != image)
-                curr = curr->next;
+        renderobj_t *curr;
+        for(curr = state->render_list; curr != NULL; curr = curr->next) {
+                if (curr->type == RENDEROBJ_IMAGE && curr->image == image)
+                        break;
+        }
         return curr;
 }
 
+// Make the render object the current render target
 EGLBoolean makeRenderObjCurrent(STATE_T *state, renderobj_t *entry)
 {
         EGLBoolean result = EGL_FALSE;
-        
-        if (state->display && entry->surface && entry->context) {
-                result = eglMakeCurrent(state->display, entry->surface,
-                                        entry->surface, entry->context);
+        window_t *window = &entry->window;
+        if (window->surface && window->context) {
+                result = eglMakeCurrent(state->egl_display, window->surface,
+                                        window->surface, window->context);
+                if (result == EGL_TRUE) {
+                        state->render_target = entry;
+                }
         }
         return result;
+}
+
+/////
+// Windows
+
+// Allocate a new render object whose drawable is a window
+renderobj_t *makeRenderObjWindow(STATE_T *state, uint32_t layer,
+                                 int32_t xpos, int32_t ypos,
+                                 uint32_t width, uint32_t height)
+{
+        static const EGLint attribute_list[] = {
+                EGL_RED_SIZE, 8,
+                EGL_GREEN_SIZE, 8,
+                EGL_BLUE_SIZE, 8,
+		EGL_ALPHA_SIZE, 8,
+		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+                EGL_RENDERABLE_TYPE, EGL_OPENVG_BIT,
+		EGL_NONE
+	};
+        EGLContext context;
+        EGLConfig config;
+        EGLBoolean result;
+        EGLint num_configs;
+
+        if (layer <= 0 || layer == CURSOR_LAYER || layer == DIM_LAYER)
+                return NULL;
+        
+        result = eglChooseConfig(state->egl_display, attribute_list,
+                                 &config, 1, &num_configs);
+        if (result == EGL_FALSE)
+                return NULL;
+        context = eglCreateContext(state->egl_display, config,
+                                   state->render_base.window.context, NULL);
+        if (context == NULL)
+                return NULL;
+
+        renderobj_t *entry = addRenderObj(state);
+        if (entry == NULL) {
+                eglDestroyContext(state->egl_display, context);
+                return NULL;
+        }
+
+        window_t *window = &entry->window;
+        entry->type = RENDEROBJ_WINDOW;
+        window->width = width;
+        window->height = height;
+        window->xpos = xpos + state->render_base.window.xpos;
+        window->ypos = ypos + state->render_base.window.ypos;
+        window->layer = layer;
+
+        VC_RECT_T src_rect, dst_rect;
+        setWindowParams(state, window, &src_rect, &dst_rect);
+	DISPMANX_UPDATE_HANDLE_T dispman_update;
+	dispman_update = vc_dispmanx_update_start(0);
+	window->element = vc_dispmanx_element_add(dispman_update,
+                                                  state->dmx_display, layer,
+                                                  &dst_rect, 0, &src_rect,
+                                                  DISPMANX_PROTECTION_NONE, 0,
+                                                  0, DISPMANX_NO_ROTATE);
+
+	vc_dispmanx_update_submit_sync(dispman_update);
+        window->context = context;
+        window->nativewindow.element = window->element;
+        window->nativewindow.width = width;
+        window->nativewindow.height = height;
+	window->surface = eglCreateWindowSurface(state->egl_display, config,
+                                                 &window->nativewindow, NULL);
+	if (window->surface == EGL_NO_SURFACE) {
+                delRenderObj(state, entry);
+                return NULL;
+        }
+
+        // Looks like we can't change this for sub windows
+//	result = eglSurfaceAttrib(state->dmx_display, window->surface,
+//                                  EGL_SWAP_BEHAVIOR, EGL_BUFFER_PRESERVED);
+//	if (EGL_FALSE != result) {
+//                delRenderObj(state, entry);
+//                return NULL;
+//        }
+        return entry;
+}
+
+// Find the render object related to the handle in the state's list.
+// A handle is really a pointer to the internal struct but traverse
+// the list to make sure we were really passed a valid handle.
+renderobj_t *findRenderObj(STATE_T *state, void *handle)
+{
+        renderobj_t *curr;
+        for(curr = state->render_list; curr != NULL; curr = curr->next) {
+                if (curr == handle)
+                        break;
+        }
+        return curr;
+}
+
+void changeWindowLayer(window_t *window, int32_t layer)
+{
+        if (layer <= 0 || layer == CURSOR_LAYER || layer == DIM_LAYER)
+                return;
+        if (window->element) {
+                DISPMANX_UPDATE_HANDLE_T update = vc_dispmanx_update_start(0);
+                vc_dispmanx_element_change_layer(update, window->element, layer);
+                vc_dispmanx_update_submit_sync(update);
+	}
 }

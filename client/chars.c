@@ -34,7 +34,7 @@ int main(int argc, char *argv[]) {
         myserif = LoadTTF(argc > 1 ? argv[1] : "DejaVuSerif");
         if (!myserif) {
                 fputs("Failed to load font.", stderr);
-                finish();
+                FinishShapes();
                 exit(1);
         }
         
@@ -81,6 +81,6 @@ int main(int argc, char *argv[]) {
                 // correctly call UnloadTTF() for you.
 //        UnloadTTF(myserif);
         UnloadFont(myserif);
-        Finish();					   // Graphics cleanup
+        FinishShapes();					   // Graphics cleanup
 	exit(0);
 }

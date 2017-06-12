@@ -38,6 +38,8 @@
 
 int main() {
 	int width, height;
+        bool okay;
+        
         InitWindowSize(100, 100, 1720, 880);
         
         if (!InitShapes(&width, &height))
@@ -47,28 +49,53 @@ int main() {
         // Create an image to draw into
         VGImage my_image = vgCreateImage(VG_sABGR_8888, 100, 100, VG_IMAGE_QUALITY_BETTER);
         // Set it as the current destination for drawing
-        bool okay;
-        okay = SetRenderTargetImage(my_image);
-        if (!okay) {
+        void *target;
+        target = CreateRenderTargetToImage(my_image);
+        if (target == NULL) {
                 printf("Error in setting render target\n");
         }
         else {
-                Start(100, 100);
-                BackgroundRGBA(128, 128, 128, 0.25f);
-                Fill(255, 0, 0, 0.75f);
-                Circle(50.0f, 50.0f, 40.0f);
-                // Flush the drawing queue (not technically needed)
-                vgFlush();
-                // Set the main window back to the destination for drawing
-                okay = SetRenderTargetImage(0);
-                if (!okay) {
-                        printf("Error restoring main rendering context\n");
+                if (SetRenderTarget(target) == false) {
+                        printf("Error setting render target\n");
+                }
+                else {
+                        Start(100, 100);
+                        BackgroundRGBA(128, 128, 128, 0.25f);
+                        Fill(255, 0, 0, 0.75f);
+                        Circle(50.0f, 50.0f, 40.0f);
+                        End();
+                        // Set the main window as the destination for drawing
+                        if (SetRenderTarget(NULL) == false) {
+                                printf("Error restoring main rendering context\n");
+                        }
                 }
                 // Free up the rendering context of the image when you no
                 // longer need to draw to the image
-                okay = ReleaseRenderTargetImage(my_image);
+                okay = DeleteRenderTarget(target);
                 if (!okay) {
                         printf("Error releasing render target\n");
+                }
+        }
+
+        void *sub_window = CreateRenderTargetWindow(4, 700, 450, 900, 100);
+        if (sub_window == NULL) {
+                printf("Error creating sub window");
+        }
+        else {
+                okay = SetRenderTarget(sub_window);
+                if (!okay) {
+                        printf("Error setting sub window\n");
+                }
+                else {
+                        Start(50, 50);
+                        BackgroundRGBA(0, 0, 0, 0.0f);
+                        Fill(200, 50, 200, 0.75f);
+                        Roundrect(0, 0, 900, 100, 10, 10);
+                        End();
+                        okay = SetRenderTarget(NULL);
+                        if (!okay) {
+                                printf("Error restoring main window target");
+                        }
                 }
         }
         
@@ -93,8 +120,6 @@ int main() {
         cursor_h = vgGetParameteri(cursor, VG_IMAGE_HEIGHT);
         const VGfloat hotspot_x = -3.0f, hotspot_y = -(cursor_h-3.0f);
         if (desert && cursor) {
-                VGfloat desertw = (VGfloat)desert_w;
-                VGfloat deserth = (VGfloat)desert_h;
                 VGfloat min_sw = 2.0f;
                 VGfloat max_sw = 100 * 2.0f;
                 VGfloat scaled_ratio = 1;
@@ -117,7 +142,7 @@ int main() {
 
                 int count;
                 for (count = 0; count < 256; count++) {
-                        MoveCursor(count % width, count % height);
+                        MoveCursor(0, count % height);
                         WindowClear();
                         Circle(width / 2, 0, width); // Background
                         vgLoadIdentity(); // Reset transform matrix
@@ -147,9 +172,15 @@ int main() {
                                 break;
                         }
 //			ScreenBrightness((count * 4) % 255);
+//                        WindowPosition(sub_window, count, 450);
+                        WindowPosition(NULL, 100+count, 100);
                 }
                 DeleteCursor();
         }
+        if (sub_window) {
+                DeleteRenderTarget(sub_window);
+        }
+        
         // It's safe to destroy objects that don't exist -
         // OpenVG will give us an error but we already know
         // that and are exiting anyway.

@@ -1,17 +1,18 @@
 ifdef RPISDK
-CROSS_COMPILE ?= arm-linux-gnueabihf-
+  CROSS_COMPILE ?= arm-linux-gnueabihf-
 endif
 
 CC = $(CROSS_COMPILE)gcc
-CCOPTS = -std=gnu89 -Wall -Wextra -Wconversion -Wdouble-promotion -Wshadow -Wno-sign-conversion
+CCOPTS = -std=gnu99 -Wall -Wextra -Wconversion -Wdouble-promotion -Wshadow -Wno-sign-conversion
 
 ifdef DEBUG
-CCOPTS += -O0 -g
+  CCOPTS += -O0 -g
 else
-CCOPTS += -O2
+  CCOPTS += -O2
 endif
 
 INCLUDEFLAGS=-I$(RPISDK)/opt/vc/include -I$(RPISDK)/opt/vc/include/interface/vmcs_host/linux -I$(RPISDK)/opt/vc/include/interface/vcos/pthreads -fPIC
+
 LIBFLAGS=-L$(RPISDK)/opt/vc/lib -lEGL -lGLESv2 -ljpeg -lpng -lfreetype -lfontconfig -lz
 FONTLIB=/usr/share/fonts/truetype/dejavu
 FONTFILES=DejaVuSans.inc  DejaVuSansMono.inc DejaVuSerif.inc
@@ -45,7 +46,7 @@ DejaVuSansMono.inc: font2openvg $(FONTLIB)/DejaVuSansMono.ttf
 	./font2openvg $(FONTLIB)/DejaVuSansMono.ttf DejaVuSansMono.inc DejaVuSansMono
 
 clean:
-	rm -f *.o *.inc *.so font2openvg *.c~ *.h~
+	-rm -f *.o *.inc *.so font2openvg *.c~ *.h~
 	indent -linux -c 60 -brf -l 132  libshapes.c oglinit.c fontsystem.c shapes.h fontinfo.h
 
 library: oglinit.o libshapes.o fontsystem.o
@@ -61,6 +62,6 @@ install:
 	install -m 644 -p fontinfo.h /usr/include/
 
 uninstall:
-	rm -f /usr/bin/font2openvg
-	rm -f /usr/lib/libshapes.so.2.0.0 /usr/lib/libshapes.so
-	rm -f /usr/include/shapes.h /usr/include/fontinfo.h
+	-rm -f /usr/bin/font2openvg
+	-rm -f /usr/lib/libshapes.so.2.0.0 /usr/lib/libshapes.so
+	-rm -f /usr/include/shapes.h /usr/include/fontinfo.h
