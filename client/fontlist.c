@@ -11,7 +11,7 @@
 Fontinfo myfont;
 
 int main(int argc, char *argv[]) {
-	char *fontpaths[] = {
+	const char *fontpaths[] = {
 		"/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
 		"/usr/share/fonts/truetype/droid/DroidSerif-Bold.ttf",
 		"/usr/share/fonts/truetype/droid/DroidSerif-Italic.ttf",
@@ -119,12 +119,12 @@ int main(int argc, char *argv[]) {
         
 	VGfloat x, y, top, bottom, left, colwidth, vspace;
 	fontsize = 20;
-	colwidth = (VGfloat) fontsize *30;
-	left = (VGfloat) width *0.025;
-	bottom = (VGfloat) height *0.05; // Lowered to fit all on screen
-	top = (VGfloat) height *0.90;
-	colwidth = (VGfloat) fontsize *30;
-	vspace = (VGfloat) fontsize *2.0;
+	colwidth = (VGfloat) fontsize * 30.0f;
+	left = (VGfloat) width * 0.025f;
+	bottom = (VGfloat) height * 0.05f; // Lowered to fit all on screen
+	top = (VGfloat) height * 0.90f;
+	colwidth = (VGfloat) fontsize * 30.0f;
+	vspace = (VGfloat) fontsize * 2.0f;
 
 	x = left;
 	y = top;

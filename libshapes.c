@@ -980,19 +980,7 @@ bool End(void) {
 		}
 	}
 
-        switch (state->render_target->type) {
-            case RENDEROBJ_IMAGE:
-                    vgFinish();
-                    break;
-            case RENDEROBJ_MAIN:
-            case RENDEROBJ_WINDOW:
-                    eglSwapBuffers(state->egl_display,
-                                   state->render_target->window.surface);
-                    break;
-            default:
-                    fputs("Warning, libshapes End() called on invalid render target\n", stderr);
-                    break;
-        }
+        eglSwapBuffers(state->egl_display, state->render_target->window.surface);
 	if (check_errors && eglGetError() != EGL_SUCCESS)
 		success = false;
 	return success;
@@ -1074,16 +1062,17 @@ void WindowPosition(void *window, int32_t x, int32_t y) {
         if (window == NULL)
                 entry = &state->render_base;
         else
-                entry = findRenderObj(state, window);
-        
+                entry = findRenderObj(state, window);        
         if (entry != NULL) {
                 if (entry->type == RENDEROBJ_MAIN) {
                         dispmanMoveWindow(state, &entry->window, x, y);
                         if (priv_cursor != NULL)
                                 MoveHWCursor(priv_cursor->xpos, priv_cursor->ypos);
                 }
-                if (entry->type == RENDEROBJ_WINDOW)
+                if (entry->type == RENDEROBJ_WINDOW) {
+                        y = (int32_t)state->render_base.window.height - 1 - y - entry->window.height;
                         dispmanMoveWindow(state, &entry->window, x, y);
+                }
         }
         
 }
@@ -1157,7 +1146,7 @@ void ArcOutline(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat sa, VGfloat 
 
 // newpath_ext creates new a new path, this one has all capabilities
 // as the user may want to join paths together.
-static inline VGPath newpath_ext() {
+static inline VGPath newpath_ext(void) {
 	return vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 0, 0, VG_PATH_CAPABILITY_ALL);
 }
 
@@ -1626,9 +1615,12 @@ void *CreateRenderTargetToImage(VGImage image)
         return entry;
 }
 
+// Create a window for drawing into, coordinates are (0,0) at bottom
+// left of the main window
 void *CreateRenderTargetWindow(int32_t layer, int32_t x, int32_t y,
                       uint32_t width, uint32_t height)
 {
+        y = (int32_t)state->render_base.window.height - 1 - y - height;
         renderobj_t *obj = makeRenderObjWindow(state, layer,
                                                x, y, width, height);
         return obj;

@@ -36,7 +36,7 @@
  * function to apply the translation before the user's transforms...
  */
 
-int main() {
+int main(void) {
 	int width, height;
         bool okay;
         

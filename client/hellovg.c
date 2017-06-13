@@ -8,7 +8,7 @@
 #include "fontinfo.h"
 #include "shapes.h"
 
-int main() {
+int main(void) {
 	int width, height;
 	char s[3];
 	char hello1[] = {'H','e','j',',',' ','v', 0xc3, 0xa4,'r' , 'l','d' ,'e','n',0};

@@ -38,7 +38,7 @@ typedef struct particle {
         VGPaint colour;
 } particle_t;
 
-unsigned int num_particles = 50;
+unsigned int num_particles = NUM_PARTICLES;
 particle_t *particles;
 VGPaint textColour, bgFade;
 VGPath bgFadeRect;
@@ -52,8 +52,8 @@ Fontinfo myFont;
 char demoText[64];
 
 // Initialize _all_ the particles
-void initParticles(int w, int h) {
-	int i;
+void initParticles(int w, int h __attribute__((__unused__))) {
+	unsigned int i;
 	for (i = 0; i < num_particles; i++) {
 		particle_t *p = &particles[i];
 
@@ -80,8 +80,8 @@ void initParticles(int w, int h) {
 }
 
 // Free _all_ the particles
-void deinitParticles() {
-	int i;
+void deinitParticles(void) {
+	unsigned int i;
 	for (i = 0; i < num_particles; i++) {
 		particle_t *p = &particles[i];
                 DeletePaint(p->colour);
@@ -90,6 +90,7 @@ void deinitParticles() {
 }
 
 void paintBG(int w, int h) {
+        if (w == h){};
  	if (!showTrails)
 		return WindowClear();
 
@@ -98,7 +99,7 @@ void paintBG(int w, int h) {
 }
 
 void draw(int w, int h) {
-	int i;
+	unsigned int i;
 	particle_t *p;
 
 	paintBG(w, h);

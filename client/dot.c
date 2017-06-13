@@ -1,11 +1,12 @@
 #include <stdio.h>
 #include <time.h>
+#include <stdlib.h>
 #include "shapes.h"
 
 VGPaint myRed;
 VGPaint myWhite;
 
-void allocData()
+void allocData(void)
 {
     myWhite = Paint(color_white, 1.0f);
     myRed = Paint(color_red, 1.0f);
@@ -13,7 +14,7 @@ void allocData()
 
 int count = 50000;
 
-void drawScene()
+void drawScene(void)
 {
     int i;
 
@@ -24,8 +25,8 @@ void drawScene()
     StrokeWidth(1.0f);  // Dot doesn't use stroke so we shouldn't see red
 
     for(i = 0; i < count; i++) {
-        float xp = (float)(rand() & 0x3ff);
-        float yp = (float)(rand() & 0x1ff);
+        VGfloat xp = (VGfloat)(rand() & 0x3ff);
+        VGfloat yp = (VGfloat)(rand() & 0x1ff);
         Dot(xp, yp, rand() & 1 ? true:false);
     }
     
@@ -33,7 +34,7 @@ void drawScene()
     WindowSaveAsPng("win.png", 0,0, 640, 640, 9);
 }
 
-void freeData()
+void freeData(void)
 {
     DeletePaint(myRed);
     DeletePaint(myWhite);
@@ -43,7 +44,7 @@ int main(int argc, char *argv[])
 {
     time_t time_s, time_f;
     double time_diff;
-    int w, h, i;
+    int w, h;
 
     if (argc == 2) {
         count = atoi(argv[1]);

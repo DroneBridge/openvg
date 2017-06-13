@@ -540,8 +540,6 @@ bool delRenderObj(STATE_T *state, renderobj_t *entry)
         if (entry->type == RENDEROBJ_NONE || entry->type == RENDEROBJ_MAIN
             || state->render_target == entry)
                 return false;
-//        if (eglGetCurrentContext() == entry->window.context)
-//                return false;
 
         EGLBoolean res;
 
@@ -676,13 +674,12 @@ renderobj_t *makeRenderObjWindow(STATE_T *state, uint32_t layer,
                 return NULL;
         }
 
-        // Looks like we can't change this for sub windows
-//	result = eglSurfaceAttrib(state->dmx_display, window->surface,
-//                                  EGL_SWAP_BEHAVIOR, EGL_BUFFER_PRESERVED);
-//	if (EGL_FALSE != result) {
-//                delRenderObj(state, entry);
-//                return NULL;
-//        }
+	result = eglSurfaceAttrib(state->egl_display, window->surface,
+                                  EGL_SWAP_BEHAVIOR, EGL_BUFFER_PRESERVED);
+	if (EGL_FALSE == result) {
+                delRenderObj(state, entry);
+                return NULL;
+        }
         return entry;
 }
 

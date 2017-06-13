@@ -149,7 +149,7 @@ static int ft_cubic_to(const FT_Vector * ctrl1, const FT_Vector * ctrl2, const F
 	return 0;
 }
 
-FT_Outline_Funcs funcs = {
+static FT_Outline_Funcs funcs = {
 	(FT_Outline_MoveTo_Func) & ft_move_to,
 	(FT_Outline_LineTo_Func) & ft_line_to,
 	(FT_Outline_ConicTo_Func) & ft_conic_to,
@@ -343,7 +343,7 @@ Fontinfo LoadTTF(const char *name) {
 
 	FcConfig *fc_config = FcInitLoadConfigAndFonts();
 	if (fc_config) {
-		FcPattern *pattern = FcNameParse((FcChar8 *) name);
+		FcPattern *pattern = FcNameParse((const FcChar8 *) name);
 		if (pattern) {
 			FcConfigSubstitute(fc_config, pattern, FcMatchPattern);
 			FcDefaultSubstitute(pattern);
@@ -365,7 +365,7 @@ Fontinfo LoadTTF(const char *name) {
 }
 
 // closeFontSystem() - Close and free data used by freetype2
-void font_CloseFontSystem() {
+void font_CloseFontSystem(void) {
 	if (ft_library != NULL) {
 		FT_Done_FreeType(ft_library);
 		ft_library = NULL;

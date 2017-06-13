@@ -40,7 +40,7 @@ int quitState = 0;
 #define    CUR_SIZ  16					   // cursor size, pixels beyond centre dot
 
 // evenThread reads from the mouse input file
-void *eventThread(void *arg) {
+void *eventThread(void *arg __attribute__((__unused__))) {
 
 	// Open mouse driver
 	if ((mouse.fd = open("/dev/input/event0", O_RDONLY)) < 0) {
@@ -141,6 +141,7 @@ void restoreCursor(VGImage CursorBuffer) {
 
 // circleCursor draws a translucent circle as the mouse cursor
 void circleCursor(int curx, int cury, int width, int height, int s) {
+        if (width == height){};
 	Fill(100, 0, 0, 0.50);
 	Circle(curx, cury, s);
 	Fill(0, 0, 0, 1);
@@ -155,7 +156,7 @@ int mouseinit(int w, int h) {
 	return pthread_create(&inputThread, NULL, &eventThread, NULL);
 }
 
-int main() {
+int main(void) {
 	int width, height, cursorx, cursory, cbsize;
 
 	InitShapes(&width, &height);				   // Graphics initialization

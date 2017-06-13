@@ -18,8 +18,8 @@ int main(int argc, char *argv[])
         int width, height;
         InitShapes(&width, &height);
 
-        char *fontname = argc > 1 ? argv[1] : "DejaVuSerif";
-        char *fontstyle = argc > 2 ? argv[2] : "Regular";
+        const char *fontname = argc > 1 ? argv[1] : "DejaVuSerif";
+        const char *fontstyle = argc > 2 ? argv[2] : "Regular";
         char fname[strlen(fontname) + strlen(fontstyle) + 2];
         strcpy(fname, fontname);
         strcat(fname, ":");
@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
         char buffer[255];
         snprintf(buffer, 255, "Font: %s, Style: %s, Kerning %s available", myfont->Name, myfont->Style, myfont->Kerning ? "is" : "is not");
         Text(20, 20, buffer, SerifTypeface, 20);
-        char *string = "Without kerning: ";
+        const char *string = "Without kerning: ";
         VGfloat start_pos = 10 + TextWidth(string, SerifTypeface, 32);
         VGfloat line_height = TextLineHeight(myfont, 32);
         Text(10, 100, string, SerifTypeface, 32);

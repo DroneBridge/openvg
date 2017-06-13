@@ -38,7 +38,7 @@ int alternate = 1;
 double gravity = 0.5;
 
 // Initialize _all_ the particles
-void initParticles(int w, int h) {
+void initParticles(int w, int h __attribute__((__unused__))) {
 	int i;
 	for (i = 0; i < NUM_PARTICLES; i++) {
 		particle_t *p = &particles[i];

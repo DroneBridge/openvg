@@ -34,25 +34,15 @@ extern "C" {
 	extern void Ellipse(VGfloat, VGfloat, VGfloat, VGfloat);
 	extern void Circle(VGfloat, VGfloat, VGfloat);
 	extern void Arc(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat);
-	extern void Image(VGfloat, VGfloat, VGint, VGint, const char *);
 	extern void Start(VGint, VGint);
 	extern bool End(void);
 	extern bool SaveEnd(const char *);
 	extern void Background(VGuint, VGuint, VGuint);
-	// Deprecate BackgroundRGB, should really be BackgroundRGBA
-	extern void BackgroundRGB(VGuint, VGuint, VGuint, VGfloat) DEPRECATED;
 	extern void BackgroundRGBA(VGuint, VGuint, VGuint, VGfloat);
-	// Deprecate non capitalised function names
-	extern bool init(int32_t *, int32_t *) DEPRECATED;
-	extern void finish(void) DEPRECATED;
-	extern void setfill(VGfloat[4]) DEPRECATED;
-	extern void setstroke(VGfloat[4]) DEPRECATED;
-	// New function names
 	extern bool InitShapes(int32_t *, int32_t *);
 	extern void FinishShapes(void);
 	extern void SetFill(VGfloat[4]);
 	extern void SetStroke(VGfloat[4]);
-
 	extern void StrokeWidth(VGfloat);
 	extern void Stroke(VGuint, VGuint, VGuint, VGfloat);
 	extern void Fill(VGuint, VGuint, VGuint, VGfloat);
@@ -62,7 +52,15 @@ extern "C" {
 	extern void FillRadialGradient(VGfloat, VGfloat, VGfloat, VGfloat, VGfloat, VGfloat *, VGint);
 	extern void ClipRect(VGint x, VGint y, VGint w, VGint h);
 	extern void ClipEnd(void);
+
+        // Deprecate BackgroundRGB, should really be BackgroundRGBA
+	extern void BackgroundRGB(VGuint, VGuint, VGuint, VGfloat) DEPRECATED;
 	// Deprecate non capitalised function names
+	extern void image(VGfloat, VGfloat, VGint, VGint, const char *) DEPRECATED;
+	extern bool init(int32_t *, int32_t *) DEPRECATED;
+	extern void finish(void) DEPRECATED;
+	extern void setfill(VGfloat[4]) DEPRECATED;
+	extern void setstroke(VGfloat[4]) DEPRECATED;
 	extern Fontinfo loadfont(const int *, const int *, const unsigned char *, const int *, const int *, const int *,
 				 const short *, int, int, int) DEPRECATED;
 	extern void unloadfont(Fontinfo) DEPRECATED;
@@ -71,7 +69,9 @@ extern "C" {
 	extern void restoreterm(void) DEPRECATED;
 	extern void rawterm(void) DEPRECATED;
 	extern VGImage createImageFromJpeg(const char *) DEPRECATED;
-	// New function names
+
+        // Capitalised function names (replacing deprecated ones)
+	extern void Image(VGfloat, VGfloat, VGint, VGint, const char *);
 	extern Fontinfo LoadFont(const int *, const int *, const unsigned char *, const int *, const int *, const int *,
 				 const short *, int, int, int);
 	extern void UnloadFont(Fontinfo);

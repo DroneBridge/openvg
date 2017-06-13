@@ -8,7 +8,7 @@
 #include "fontinfo.h"
 #include "shapes.h"
 
-int main() {
+int main(void) {
 	int width, height;
 	InitShapes(&width, &height);				   // Graphics initialization
 	printf("%d %d\n", width, height);

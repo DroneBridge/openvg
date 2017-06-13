@@ -24,7 +24,7 @@ typedef enum
 #if defined(__cplusplus)
 extern "C" {
 #endif
-        extern void font_CloseFontSystem();
+        extern void font_CloseFontSystem(void);
         extern unsigned int font_CharToGlyph(void *face, unsigned long code);
         extern void font_KernData(void *face, unsigned long curr, unsigned long prev, VGfloat *kernX, VGfloat *kernY);
         extern void font_error(FontErrorCode error, const char *filename);

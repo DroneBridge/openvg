@@ -8,9 +8,9 @@
 #include "VG/vgu.h"
 #include "shapes.h"
 
-int main() {
+int main(void) {
 	int  w, h, cx, cy, cw, ch, midy, fontsize;
-	char *message = "Now is the time for all good men to come to the aid of the party";
+	const char *message = "Now is the time for all good men to come to the aid of the party";
 	char s[3];
 
 	InitShapes(&w, &h);
