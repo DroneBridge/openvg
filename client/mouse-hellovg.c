@@ -25,6 +25,12 @@
 #include <fcntl.h>
 #include <pthread.h>
 
+#ifdef __GNUC__
+#define UNUSED __attribute__((__unused__))
+#else
+#define UNUSED
+#endif
+
 // Mouse state structure
 typedef struct {
 	int fd;
@@ -40,7 +46,7 @@ int quitState = 0;
 #define    CUR_SIZ  16					   // cursor size, pixels beyond centre dot
 
 // evenThread reads from the mouse input file
-void *eventThread(void *arg __attribute__((__unused__))) {
+void *eventThread(void *arg UNUSED) {
 
 	// Open mouse driver
 	if ((mouse.fd = open("/dev/input/event0", O_RDONLY)) < 0) {
@@ -140,8 +146,7 @@ void restoreCursor(VGImage CursorBuffer) {
 }
 
 // circleCursor draws a translucent circle as the mouse cursor
-void circleCursor(int curx, int cury, int width, int height, int s) {
-        if (width == height){};
+void circleCursor(int curx, int cury, int width UNUSED, int height UNUSED, int s) {
 	Fill(100, 0, 0, 0.50);
 	Circle(curx, cury, s);
 	Fill(0, 0, 0, 1);

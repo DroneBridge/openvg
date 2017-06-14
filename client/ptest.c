@@ -24,6 +24,12 @@
 #include "VG/vgu.h"
 #include "shapes.h"
 
+#ifdef __GNUC__
+#define UNUSED __attribute__((__unused__))
+#else
+#define UNUSED
+#endif
+
 // ~55 seems to be the limit before jankiness kicks in
 // New path system is quicker so we can have more!
 // Not used now, it can be set on the cmdline with -n
@@ -52,7 +58,7 @@ Fontinfo myFont;
 char demoText[64];
 
 // Initialize _all_ the particles
-void initParticles(int w, int h __attribute__((__unused__))) {
+void initParticles(int w, int h UNUSED) {
 	unsigned int i;
 	for (i = 0; i < num_particles; i++) {
 		particle_t *p = &particles[i];
@@ -89,8 +95,7 @@ void deinitParticles(void) {
         }
 }
 
-void paintBG(int w, int h) {
-        if (w == h){};
+void paintBG(int w UNUSED, int h UNUSED) {
  	if (!showTrails)
 		return WindowClear();
 

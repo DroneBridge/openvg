@@ -3,7 +3,7 @@ ifdef RPISDK
 endif
 
 CC = $(CROSS_COMPILE)gcc
-CCOPTS = -std=c99 -Wall -Wextra -Wdouble-promotion -Wshadow
+CCOPTS = -std=gnu99 -Wall -Wextra -Wdouble-promotion -Wshadow
 
 ifdef DEBUG
   CCOPTS += -O0 -g
@@ -30,7 +30,7 @@ LIBFLAGS = -Wl,-rpath=$(RPISDK)/opt/vc/lib -L$(RPISDK)/opt/vc/lib -lEGL \
 	   -lfontconfig -lz -lm
 
 all :	chars clip dot fontlist fonttest hellovg image newfont mouse-hellovg \
-	particles ptest screensize shapedemo tst
+	particles ptest screensize shapedemo
 
 chars :		chars.o
 clip :		clip.o
@@ -45,7 +45,6 @@ particles :	particles.o
 ptest :		ptest.o
 screensize :	screensize.o
 shapedemo :	shapedemo.o
-tst :		tst.o
 
 .PHONY : test indent clean
 
@@ -71,5 +70,5 @@ indent :
 $(DEPDIR)/%.d: ;
 .PRECIOUS: $(DEPDIR)/%.d
 
-include $(wildcard $(pathsubs %,$(DEPDIR)/%.d,$(basename $(SRCS))))
+include $(wildcard $(patsubst %,$(DEPDIR)/%.d,$(basename $(SRCS))))
 

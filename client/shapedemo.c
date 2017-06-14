@@ -12,6 +12,12 @@
 #include "fontinfo.h"
 #include "shapes.h"
 
+#ifdef __GNUC__
+#define UNUSED __attribute__((__unused__))
+#else
+#define UNUSED
+#endif
+
 // randcolor returns a random number 0..255
 unsigned int randcolor() {
 	return (unsigned int)(drand48() * 255.0);
@@ -164,7 +170,7 @@ typedef struct {
 	int fontsize;
 } FW;
 
-void textbbox(char *s, Fontinfo f, int pointsize) {
+void textbbox(char *s UNUSED, Fontinfo f UNUSED, int pointsize UNUSED) {
 
 }
 
@@ -441,7 +447,7 @@ void refcard(int width, int height) {
 	coordpoint(cx, sy, dotsize, shapecolor);
 	coordpoint(ex, ey, dotsize, shapecolor);
 
-	sy -= (sh * spacing * 1.5);
+	sy -= (sh * spacing * 1.5f);
 	Image(sx, sy, 100, 100, "starx.jpg");
 
 	End();
@@ -449,7 +455,7 @@ void refcard(int width, int height) {
 
 // rotext draws text, rotated around the center of the screen, progressively faded
 void rotext(int w, int h, int n, char *s) {
-	VGfloat fade = (100.0 / (VGfloat) n) / 100.0;
+	VGfloat fade = (100.0f / (VGfloat) n) / 100.0f;
 	VGfloat deg = 360.0 / n;
 	VGfloat x = w / 2, y = h / 2;
 	VGfloat alpha = 1.0;	// start solid
@@ -512,7 +518,7 @@ void rshapes(int width, int height, int n) {
 		sy = randf(height);
 		ex = sx + randf(200);
 		ey = sy;
-		cx = sx + ((ex - sx) / 2.0);
+		cx = sx + ((ex - sx) / 2.0f);
 		cy = sy + randf(100);
 		Qbezier(sx, sy, cx, cy, ex, ey);
 
@@ -520,7 +526,7 @@ void rshapes(int width, int height, int n) {
 		sy = randf(height);
 		ex = sx + randf(200);
 		ey = sy;
-		cx = sx + ((ex - sx) / 2.0);
+		cx = sx + ((ex - sx) / 2.0f);
 		cy = sy + randf(100);
 		px = cx;
 		py = sy - randf(100);
@@ -561,7 +567,7 @@ void sunearth(int w, int h) {
 		y = randf(h);
 		Circle(x, y, 2);
 	}
-	earth = (VGfloat) w *0.010;
+	earth = (VGfloat) w *0.010f;
 	sun = earth * 109;
 	Fill(0, 0, 255, 1);
 	Circle(w / 3, h - (h / 10), earth);

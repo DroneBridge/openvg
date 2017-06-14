@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <locale.h>
 #include <unistd.h>
+#include <string.h>
 #include <libgen.h>
 #include "VG/openvg.h"
 #include "VG/vgu.h"
@@ -85,6 +86,7 @@ int main(int argc, char *argv[]) {
 		"/usr/share/fonts/truetype/roboto/Roboto-LightItalic.ttf",
 		"/usr/share/fonts/truetype/roboto/Roboto-Light.ttf"
 	};
+        char fname[256];
 	int width, height, i, beginlist, endlist, fontsize;
 	char s[3];
 
@@ -139,7 +141,9 @@ int main(int argc, char *argv[]) {
 			printf("load FAILED\n");
 			continue;
 		}
-		Text(x, y, basename(fontpaths[i]), myfont, fontsize);
+                // basename() may alter the string so copy it
+                strncpy(fname, fontpaths[i], 255);
+		Text(x, y, basename(fname), myfont, fontsize);
 		UnloadFont(myfont);
                 End(); // This takes a while - update after each one.
                 y = y - vspace;

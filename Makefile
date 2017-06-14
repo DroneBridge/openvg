@@ -17,9 +17,9 @@ LIBFLAGS=-L$(RPISDK)/opt/vc/lib -lEGL -lGLESv2 -ljpeg -lpng -lfreetype -lfontcon
 FONTLIB=/usr/share/fonts/truetype/dejavu
 FONTFILES=DejaVuSans.inc  DejaVuSansMono.inc DejaVuSerif.inc
 
-all:	font2openvg fonts library	
+all:	font2openvg libshapes.so
 
-libshapes.o:	libshapes.c shapes.h fontinfo.h fontsystem.h fonts
+libshapes.o:	libshapes.c shapes.h fontinfo.h fontsystem.h $(FONTFILES)
 	$(CC) $(CCOPTS) $(INCLUDEFLAGS) -c libshapes.c
 
 fontsystem.o:	fontsystem.c fontinfo.h fontsystem.h
@@ -34,8 +34,6 @@ oglinit.o:	oglinit.c
 font2openvg:	fontutil/font2openvg.cpp
 	g++ -I/usr/include/freetype2 fontutil/font2openvg.cpp -o font2openvg -lfreetype
 
-fonts:	$(FONTFILES)
-
 DejaVuSans.inc: font2openvg $(FONTLIB)/DejaVuSans.ttf
 	./font2openvg $(FONTLIB)/DejaVuSans.ttf DejaVuSans.inc DejaVuSans
 
@@ -49,7 +47,7 @@ clean:
 	-rm -f *.o *.inc *.so font2openvg *.c~ *.h~
 	indent -linux -c 60 -brf -l 132  libshapes.c oglinit.c fontsystem.c shapes.h fontinfo.h
 
-library: oglinit.o libshapes.o fontsystem.o
+libshapes.so: oglinit.o libshapes.o fontsystem.o
 	$(CC) $(LIBFLAGS) -shared -o libshapes.so -Wl,-soname,libshapes.so.2.0.0 oglinit.o libshapes.o fontsystem.o
 
 install:
