@@ -5,6 +5,8 @@ endif
 CC = $(CROSS_COMPILE)gcc
 CCOPTS = -std=gnu99 -Wall -Wextra -Wconversion -Wdouble-promotion -Wshadow -Wno-sign-conversion -Wfatal-errors -Wunused -Wcast-qual -Wmissing-prototypes -Wunreachable-code -Wwrite-strings -Warray-bounds -Wstrict-aliasing=3 -Wstrict-overflow=1 -Winline -Wswitch -Wmissing-include-dirs -Woverlength-strings -Wpacked -Wdisabled-optimization  -Wformat=2 -Winit-self -Wunused-parameter -Wlogical-op -Wuninitialized -Wnested-externs -Wpointer-arith -Wunused-macros -Wunsafe-loop-optimizations
 
+OBJCOPY = $(CROSS_COMPILE)objcopy
+
 ifdef DEBUG
   CCOPTS += -O0 -g
 else
@@ -48,7 +50,8 @@ clean:
 	indent -linux -c 60 -brf -l 132  libshapes.c oglinit.c fontsystem.c shapes.h fontinfo.h
 
 libshapes.so: oglinit.o libshapes.o fontsystem.o
-	$(CC) $(LIBFLAGS) -shared -o libshapes.so -Wl,-soname,libshapes.so.2.0.0 oglinit.o libshapes.o fontsystem.o
+	$(CC) $(LIBFLAGS) -shared -o libshapes.so -Wl,-soname,libshapes.so.3.0.0 oglinit.o libshapes.o fontsystem.o
+	$(OBJCOPY) --localize-hidden libshapes.so
 
 install:
 	install -m 755 -p font2openvg /usr/bin/

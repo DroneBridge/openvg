@@ -80,7 +80,9 @@ static void setWindowParams(STATE_T * state, window_t * window, VC_RECT_T * src_
 
 // oglinit sets the display, OpenVGL context and screen information
 // state holds the display information
-void oglinit(STATE_T * state) {
+__attribute__((visibility("hidden")))
+void oglinit(STATE_T * state)
+{
 	int32_t success = 0;
 	EGLBoolean result;
 	EGLint num_config;
@@ -183,6 +185,7 @@ void oglinit(STATE_T * state) {
         state->render_target = &state->render_base;
 }
 
+__attribute__((visibility("hidden")))
 void oglEnd(STATE_T * state)
 {
         renderobj_t *curr;
@@ -205,6 +208,7 @@ void oglEnd(STATE_T * state)
 // -ve coords are allowed upto (1-width,1-height),
 // max (screen_width-1,screen_height-1). i.e. at least one pixel must be
 // on the screen.
+__attribute__((visibility("hidden")))
 void dispmanMoveWindow(STATE_T * state, window_t * window,
                        int32_t x, int32_t y) {
 	VC_RECT_T src_rect, dst_rect;
@@ -253,6 +257,7 @@ void dispmanMoveWindow(STATE_T * state, window_t * window,
 
 // dispmanChangeWindowOpacity changes the window's opacity
 // 0 = transparent, 255 = opaque
+__attribute__((visibility("hidden")))
 void dispmanChangeWindowOpacity(window_t * window, uint32_t alpha) {
 	DISPMANX_UPDATE_HANDLE_T dispman_update;
         
@@ -277,6 +282,7 @@ static inline int align_up(int x, int y) {
 }
 
 // Create a cursor
+__attribute__((visibility("hidden")))
 cursor_t *createCursor(STATE_T * state, const uint32_t * data, uint32_t w, uint32_t h, uint32_t hx, uint32_t hy, bool upsidedown) {
 	if (w == 0 || w > state->render_base.window.width ||
             h == 0 || h > state->render_base.window.height ||
@@ -327,6 +333,7 @@ cursor_t *createCursor(STATE_T * state, const uint32_t * data, uint32_t w, uint3
 }
 
 // Show the cursor on screen
+__attribute__((visibility("hidden")))
 void showCursor(STATE_T * state, cursor_t * cursor) {
 	if (cursor && !cursor->window.element) {
 		VC_RECT_T src_rect, dst_rect;
@@ -344,6 +351,7 @@ void showCursor(STATE_T * state, cursor_t * cursor) {
 }
 
 // Hide the cursor
+__attribute__((visibility("hidden")))
 void hideCursor(cursor_t * cursor) {
 	if (cursor && cursor->window.element) {
 		DISPMANX_UPDATE_HANDLE_T update = vc_dispmanx_update_start(0);
@@ -354,6 +362,7 @@ void hideCursor(cursor_t * cursor) {
 }
 
 // Move the cursor
+__attribute__((visibility("hidden")))
 void moveCursor(STATE_T * state, cursor_t * cursor, int32_t x, int32_t y) {
         if (x < 0)
                 x = 0;
@@ -381,6 +390,7 @@ void moveCursor(STATE_T * state, cursor_t * cursor, int32_t x, int32_t y) {
 }
 
 // Delete a cursor
+__attribute__((visibility("hidden")))
 void deleteCursor(cursor_t * cursor) {
         if (cursor->window.element) {
                 DISPMANX_UPDATE_HANDLE_T update;
@@ -394,6 +404,7 @@ void deleteCursor(cursor_t * cursor) {
 
 // Dim screen
 // level goes from 0 = black -> 255 = Normal. Over 255 is clamped.
+__attribute__((visibility("hidden")))
 void screenBrightness(STATE_T * state, uint32_t level) {
 	static uint32_t brightnessLevel = 255;
 	static DISPMANX_RESOURCE_HANDLE_T brightnessLayer = 0;
@@ -467,6 +478,7 @@ void screenBrightness(STATE_T * state, uint32_t level) {
 // Images
 
 // Allocate a new render object whose drawable is an OpenVG Image
+__attribute__((visibility("hidden")))
 renderobj_t *makeRenderObjImage(STATE_T *state, VGImage image)
 {
         static const EGLint attribute_list[] = {
@@ -519,6 +531,7 @@ renderobj_t *makeRenderObjImage(STATE_T *state, VGImage image)
 }
 
 // Allocate a render object and add it to the state's render object list
+__attribute__((visibility("hidden")))
 renderobj_t *addRenderObj(STATE_T *state)
 {
         renderobj_t *entry = calloc(1, sizeof *entry);
@@ -535,6 +548,7 @@ renderobj_t *addRenderObj(STATE_T *state)
 // Deallocate render object and remove it from the state's list.
 // This assumes that the object is in the list (it's the only list),
 // don't allow the object to be deleted if it is active.
+__attribute__((visibility("hidden")))
 bool delRenderObj(STATE_T *state, renderobj_t *entry)
 {
         if (entry->type == RENDEROBJ_NONE || entry->type == RENDEROBJ_MAIN
@@ -579,6 +593,7 @@ bool delRenderObj(STATE_T *state, renderobj_t *entry)
 }
 
 // Find the render object related to the OpenVG Image in the state's list
+__attribute__((visibility("hidden")))
 renderobj_t *findRenderObjImage(STATE_T *state, VGImage image)
 {
         renderobj_t *curr;
@@ -590,7 +605,8 @@ renderobj_t *findRenderObjImage(STATE_T *state, VGImage image)
 }
 
 // Make the render object the current render target
-EGLBoolean makeRenderObjCurrent(STATE_T *state, renderobj_t *entry)
+__attribute__((visibility("hidden")))
+bool makeRenderObjCurrent(STATE_T *state, renderobj_t *entry)
 {
         EGLBoolean result = EGL_FALSE;
         window_t *window = &entry->window;
@@ -601,13 +617,14 @@ EGLBoolean makeRenderObjCurrent(STATE_T *state, renderobj_t *entry)
                         state->render_target = entry;
                 }
         }
-        return result;
+        return result == EGL_TRUE;
 }
 
 /////
 // Windows
 
 // Allocate a new render object whose drawable is a window
+__attribute__((visibility("hidden")))
 renderobj_t *makeRenderObjWindow(STATE_T *state, uint32_t layer,
                                  int32_t xpos, int32_t ypos,
                                  uint32_t width, uint32_t height)
@@ -626,7 +643,7 @@ renderobj_t *makeRenderObjWindow(STATE_T *state, uint32_t layer,
         EGLBoolean result;
         EGLint num_configs;
 
-        if (layer <= 0 || layer == CURSOR_LAYER || layer == DIM_LAYER)
+        if (layer == CURSOR_LAYER || layer == DIM_LAYER)
                 return NULL;
         
         result = eglChooseConfig(state->egl_display, attribute_list,
@@ -686,7 +703,8 @@ renderobj_t *makeRenderObjWindow(STATE_T *state, uint32_t layer,
 // Find the render object related to the handle in the state's list.
 // A handle is really a pointer to the internal struct but traverse
 // the list to make sure we were really passed a valid handle.
-renderobj_t *findRenderObj(STATE_T *state, void *handle)
+__attribute__((visibility("hidden")))
+renderobj_t *findRenderObj(STATE_T *state, renderobj_t *handle)
 {
         renderobj_t *curr;
         for(curr = state->render_list; curr != NULL; curr = curr->next) {
@@ -696,13 +714,19 @@ renderobj_t *findRenderObj(STATE_T *state, void *handle)
         return curr;
 }
 
-void changeWindowLayer(window_t *window, int32_t layer)
+// Change the layer that the window appears on.
+// layer cannot be CURSOR_LAYER or DIM_LAYER as these are reserved
+__attribute__((visibility("hidden")))
+bool changeWindowLayer(window_t *window, int32_t layer)
 {
-        if (layer <= 0 || layer == CURSOR_LAYER || layer == DIM_LAYER)
-                return;
-        if (window->element) {
+        int32_t ret = ~0;
+        if (layer != CURSOR_LAYER && layer != DIM_LAYER &&
+            window != NULL && window->element != 0) {
                 DISPMANX_UPDATE_HANDLE_T update = vc_dispmanx_update_start(0);
-                vc_dispmanx_element_change_layer(update, window->element, layer);
-                vc_dispmanx_update_submit_sync(update);
+                if (update) {
+                        ret = vc_dispmanx_element_change_layer(update, window->element, layer);
+                        ret |= vc_dispmanx_update_submit_sync(update);
+                }
 	}
+        return ret == 0;
 }

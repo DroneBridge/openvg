@@ -49,7 +49,7 @@ int main(void) {
         // Create an image to draw into
         VGImage my_image = vgCreateImage(VG_sABGR_8888, 100, 100, VG_IMAGE_QUALITY_BETTER);
         // Set it as the current destination for drawing
-        void *target;
+        renderobj_t *target;
         target = CreateRenderTargetToImage(my_image);
         if (target == NULL) {
                 printf("Error in setting render target\n");
@@ -77,7 +77,7 @@ int main(void) {
                 }
         }
 
-        void *sub_window = CreateRenderTargetWindow(4, 700, 450, 900, 100);
+        renderobj_t *sub_window = CreateRenderTargetWindow(4, 700, 450, 900, 100);
         if (sub_window == NULL) {
                 printf("Error creating sub window");
         }

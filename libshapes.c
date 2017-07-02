@@ -1606,7 +1606,7 @@ void ScreenBrightness(uint32_t level) {
 }
 
 // Create a render object to a VGImage
-void *CreateRenderTargetToImage(VGImage image)
+renderobj_t *CreateRenderTargetToImage(VGImage image)
 {
         renderobj_t *entry = findRenderObjImage(state, image);
         if (entry == NULL) {
@@ -1616,9 +1616,9 @@ void *CreateRenderTargetToImage(VGImage image)
 }
 
 // Create a window for drawing into, coordinates are (0,0) at bottom
-// left of the main window
-void *CreateRenderTargetWindow(int32_t layer, int32_t x, int32_t y,
-                      uint32_t width, uint32_t height)
+// left relative to the main window
+renderobj_t *CreateRenderTargetWindow(int32_t layer, int32_t x, int32_t y,
+                                      uint32_t width, uint32_t height)
 {
         y = (int32_t)state->render_base.window.height - 1 - y - height;
         renderobj_t *obj = makeRenderObjWindow(state, layer,
@@ -1626,16 +1626,18 @@ void *CreateRenderTargetWindow(int32_t layer, int32_t x, int32_t y,
         return obj;
 }
 
-void ChangeWindowLayer(void *target, int32_t layer)
+bool ChangeWindowLayer(renderobj_t *target, int32_t layer)
 {
+        bool retval = false;
         renderobj_t *entry = findRenderObj(state, target);
         if (entry != NULL && entry->type == RENDEROBJ_WINDOW) {
-                changeWindowLayer(target, layer);
+                retval = changeWindowLayer(&target->window, layer);
         }
+        return retval;
 }
 
 
-bool SetRenderTarget(void *target)
+bool SetRenderTarget(renderobj_t *target)
 {
         bool result = false;
         renderobj_t *entry = target;
@@ -1649,7 +1651,7 @@ bool SetRenderTarget(void *target)
         return result;
 }
 
-bool DeleteRenderTarget(void *target)
+bool DeleteRenderTarget(renderobj_t *target)
 {
         bool result = false;
         renderobj_t *entry = findRenderObj(state, target);

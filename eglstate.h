@@ -56,9 +56,9 @@ typedef struct STATE_T {
         // EGL display (common to all windows hence in here not window_t)
         EGLDisplay egl_display;
         // Renderable surfaces
-        struct renderobj_t render_base;
-        struct renderobj_t *render_list;
-        struct renderobj_t *render_target;
+        renderobj_t render_base;
+        renderobj_t *render_list;
+        renderobj_t *render_target;
 } STATE_T;
 
 extern void oglinit(STATE_T *);
@@ -77,11 +77,11 @@ extern renderobj_t *makeRenderObjImage(STATE_T *state, VGImage image);
 extern renderobj_t *addRenderObj(STATE_T *state);
 extern bool delRenderObj(STATE_T *state, renderobj_t *entry);
 extern renderobj_t *findRenderObjImage(STATE_T *state, VGImage image);
-extern renderobj_t *findRenderObj(STATE_T *state, void *handle);
-extern EGLBoolean makeRenderObjCurrent(STATE_T *state, renderobj_t *entry);
+extern renderobj_t *findRenderObj(STATE_T *state, renderobj_t *handle);
+extern bool makeRenderObjCurrent(STATE_T *state, renderobj_t *entry);
 extern renderobj_t *makeRenderObjWindow(STATE_T *state, uint32_t layer,
                                         int32_t xpos, int32_t ypos,
                                         uint32_t width, uint32_t height);
-extern void changeWindowLayer(window_t *window, int32_t layer);
+extern bool changeWindowLayer(window_t *window, int32_t layer);
 
 #endif

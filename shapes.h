@@ -7,6 +7,8 @@
 #include <VG/vgu.h>
 #include "fontinfo.h"
 
+typedef struct renderobj_t renderobj_t;
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -144,13 +146,13 @@ extern "C" {
 	extern void MoveCursor(int32_t x, int32_t y);
 	extern void DeleteCursor(void);
 	extern void ScreenBrightness(uint32_t level);
-        extern void *CreateRenderTargetToImage(VGImage image);
-        extern void *CreateRenderTargetWindow(int32_t layer,
+        extern renderobj_t *CreateRenderTargetToImage(VGImage image);
+        extern renderobj_t *CreateRenderTargetWindow(int32_t layer,
                                               int32_t x, int32_t y,
                                               uint32_t width, uint32_t height);
-        extern void ChangeWindowLayer(void *target, int32_t layer);
-        extern bool SetRenderTarget(void *target);
-        extern bool DeleteRenderTarget(void *target);
+        extern bool ChangeWindowLayer(renderobj_t *target, int32_t layer);
+        extern bool SetRenderTarget(renderobj_t *target);
+        extern bool DeleteRenderTarget(renderobj_t *target);
 #undef DEPRECATED
 #if defined(__cplusplus)
 }
