@@ -101,6 +101,7 @@ extern "C" {
 	extern void WindowOpacity(void *window, uint32_t alpha);
 	extern void WindowPosition(void *window, int32_t x, int32_t y);
 	extern bool WindowSaveAsPng(const char *filename, VGint x, VGint y, VGint w, VGint h, int zlib_level);
+        extern bool ScreenshotSaveAsPng(const char *filename, int zlib_level);
 	extern VGImage CreateImageFromPng(const char *filename);
 	extern void DrawImageAt(VGfloat x, VGfloat y, VGImage image);
 	extern void DrawImageAtFit(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGImage image);

@@ -141,7 +141,7 @@ int main(void) {
                 ShowCursor();
 
                 int count;
-                for (count = 0; count < 256; count++) {
+                for (count = 0; count < 1; count++) {
                         MoveCursor(0, count % height);
                         WindowClear();
                         Circle(width / 2, 0, width); // Background
@@ -175,6 +175,7 @@ int main(void) {
 //                        WindowPosition(sub_window, count, 450);
                         WindowPosition(NULL, 100+count, 100);
                 }
+                ScreenshotSaveAsPng("screenshot.png", 9);
                 DeleteCursor();
         }
         if (sub_window) {

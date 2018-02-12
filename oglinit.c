@@ -2,8 +2,9 @@
 #include <EGL/egl.h>
 #include <VG/openvg.h>
 #include "eglstate.h"
-#include <bcm_host.h>
+#include "bcm_host.h"
 #include <assert.h>
+#include <stdio.h>
 
 // setWindowParams sets the dispmanx rects used for displaying the windows,
 // Need to prevent it from going fully off screen.
@@ -131,7 +132,8 @@ void oglinit(STATE_T * state)
 	success = graphics_get_display_size(0, &state->screen_width,
 					    &state->screen_height);
 	assert(success >= 0);
-
+        state->screen_pitch = 4 * ((state->screen_width + 15) & ~15);
+        
 	if ((window->width == 0) || (window->width > state->screen_width))
 		window->width = state->screen_width;
 	if ((window->height == 0) || (window->height > state->screen_height))
@@ -729,4 +731,44 @@ bool changeWindowLayer(window_t *window, int32_t layer)
                 }
 	}
         return ret == 0;
+}
+// Take a copy of an area of the entire screen ready for saving
+__attribute__((visibility("hidden")))
+char *grabScreen(STATE_T *state) {
+        uint32_t width = state->screen_width;
+        uint32_t height = state->screen_height;
+        uint32_t pitch = state->screen_pitch;
+        uint32_t vc_err;
+	char *screen_buffer = malloc((size_t) (pitch * height));
+	if (screen_buffer != NULL) {
+                DISPMANX_RESOURCE_HANDLE_T screenshot;
+                screenshot = vc_dispmanx_resource_create(VC_IMAGE_RGBA32, width, height, &vc_err);
+                if (screenshot != 0) {
+                        vc_err = vc_dispmanx_snapshot(state->dmx_display, screenshot, 0);
+                        if (vc_err == 0) {
+                                VC_RECT_T area;
+                                vc_dispmanx_rect_set(&area, 0, 0, width, height);
+                                vc_err = vc_dispmanx_resource_read_data(screenshot, &area, screen_buffer, pitch);
+                                if (vc_err != 0) {
+                                        fprintf(stderr, "ERROR %s:%d libshapes failed to read vc_resource.\n", __FUNCTION__, __LINE__);
+                                }
+                        }
+                        else {
+                                fprintf(stderr, "ERROR %s:%d libshapes failed to take vg_snapshot.\n", __FUNCTION__, __LINE__);
+                        }
+                        vc_dispmanx_resource_delete(screenshot);
+                }
+                else {
+                        fprintf(stderr, "ERROR: %s:%d libshapes failed to create vc_resource\n", __FUNCTION__, __LINE__);
+                        vc_err = -1;
+                }
+                if (vc_err != 0) {
+                        free(screen_buffer);
+                        screen_buffer = NULL;
+                }
+        }
+        else {
+                fprintf(stderr, "ERROR: %s:%d libshapes failed to allocate memory for screenshot.\n", __FUNCTION__, __LINE__);
+        }
+	return screen_buffer;
 }

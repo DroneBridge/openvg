@@ -15,7 +15,7 @@ endif
 
 INCLUDEFLAGS=-I$(RPISDK)/opt/vc/include -I$(RPISDK)/opt/vc/include/interface/vmcs_host/linux -I$(RPISDK)/opt/vc/include/interface/vcos/pthreads -fPIC
 
-LIBFLAGS=-L$(RPISDK)/opt/vc/lib -lEGL -lGLESv2 -ljpeg -lpng -lfreetype -lfontconfig -lz
+LIBFLAGS=-L$(RPISDK)/opt/vc/lib -lbrcmEGL -lbrcmGLESv2 -ljpeg -lpng -lfreetype -lfontconfig -lz
 FONTLIB=/usr/share/fonts/truetype/dejavu
 FONTFILES=DejaVuSans.inc  DejaVuSansMono.inc DejaVuSerif.inc
 
@@ -50,14 +50,14 @@ clean:
 	indent -linux -c 60 -brf -l 132  libshapes.c oglinit.c fontsystem.c shapes.h fontinfo.h
 
 libshapes.so: oglinit.o libshapes.o fontsystem.o
-	$(CC) $(LIBFLAGS) -shared -o libshapes.so -Wl,-soname,libshapes.so.3.0.0 oglinit.o libshapes.o fontsystem.o
+	$(CC) $(LIBFLAGS) -shared -o libshapes.so -Wl,-soname,libshapes.so.2.1.0 oglinit.o libshapes.o fontsystem.o
 	$(OBJCOPY) --localize-hidden libshapes.so
 
 install:
 	install -m 755 -p font2openvg /usr/bin/
-	install -m 755 -p libshapes.so /usr/lib/libshapes.so.2.0.0
-	strip --strip-unneeded /usr/lib/libshapes.so.2.0.0
-	ln -f -s /usr/lib/libshapes.so.2.0.0 /usr/lib/libshapes.so
+	install -m 755 -p libshapes.so /usr/lib/libshapes.so.2.1.0
+	strip --strip-unneeded /usr/lib/libshapes.so.2.1.0
+	ln -f -s /usr/lib/libshapes.so.2.1.0 /usr/lib/libshapes.so
 	ldconfig
 	install -m 644 -p shapes.h /usr/include/
 	install -m 644 -p fontinfo.h /usr/include/

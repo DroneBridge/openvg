@@ -2,6 +2,8 @@
 #define LIBSHAPES_EGLSTATE_H
 
 #include <stdbool.h>
+#include "bcm_host.h"
+#include <EGL/egl.h>
 #include <VG/openvg.h>
 
 #define CURSOR_LAYER 128
@@ -51,6 +53,7 @@ typedef struct STATE_T {
 	// Screen dimentions
 	uint32_t screen_width;
 	uint32_t screen_height;
+        uint32_t screen_pitch;
         // dispmanx display
         DISPMANX_DISPLAY_HANDLE_T dmx_display;
         // EGL display (common to all windows hence in here not window_t)
@@ -83,5 +86,6 @@ extern renderobj_t *makeRenderObjWindow(STATE_T *state, uint32_t layer,
                                         int32_t xpos, int32_t ypos,
                                         uint32_t width, uint32_t height);
 extern bool changeWindowLayer(window_t *window, int32_t layer);
+extern char *grabScreen(STATE_T *state);
 
 #endif

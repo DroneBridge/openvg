@@ -1357,6 +1357,8 @@ static char *grabWindow(VGint x, VGint y, VGint * w, VGint * h) {
 
 // Save an area of the window from (x,y) at a size of (w,h) to a .png
 // file. Returns true on success.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wclobbered"
 bool WindowSaveAsPng(const char *filename, VGint x, VGint y, VGint w, VGint h, int zlib_level) {
 	bool success = false;
 	png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING,
@@ -1401,6 +1403,53 @@ bool WindowSaveAsPng(const char *filename, VGint x, VGint y, VGint w, VGint h, i
 	png_destroy_write_struct(&png_ptr, &info_ptr);
 	return success;
 }
+
+bool ScreenshotSaveAsPng(const char *filename, int zlib_level) {
+	bool success = false;
+	png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING,
+						      NULL, NULL, NULL);
+	if (png_ptr == NULL) {
+		return false;
+	}
+	png_infop info_ptr = png_create_info_struct(png_ptr);
+	if (info_ptr != NULL) {
+		FILE *file = NULL;
+		int width = state->screen_width;
+		int height = state->screen_height;
+                int pitch = state->screen_pitch;
+		char *image = grabScreen(state);
+		if (image != NULL) {
+			file = fopen(filename, "wb");
+			if (file != NULL) {
+				if (!setjmp(png_jmpbuf(png_ptr))) {
+					png_init_io(png_ptr, file);
+					png_set_IHDR(png_ptr, info_ptr, width, height,
+						     8, PNG_COLOR_TYPE_RGB,
+						     PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
+					png_set_compression_level(png_ptr, zlib_level);
+					png_write_info(png_ptr, info_ptr);
+					png_set_packing(png_ptr);
+					png_set_filler(png_ptr, 0, PNG_FILLER_AFTER);
+					png_bytep row_pointer;
+					row_pointer = (png_bytep) image;
+					VGint row;
+					for (row = height; row; row--) {
+						png_write_rows(png_ptr, &row_pointer, 1);
+						row_pointer += pitch;
+					}
+					png_write_end(png_ptr, info_ptr);
+					success = true;
+				} else
+					success = false;
+				fclose(file);
+			}
+			free(image);
+		}
+	}
+	png_destroy_write_struct(&png_ptr, &info_ptr);
+	return success;
+}
+#pragma GCC diagnostic pop
 
  // Load a PNG from filename into a VGImage, return width & height in
  // pointers. For now we'll use the basic high-level reading.
