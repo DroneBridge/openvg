@@ -1,10 +1,16 @@
+#include <assert.h>
+#include <stdio.h>
 #include <stdbool.h>
 #include <EGL/egl.h>
 #include <VG/openvg.h>
-#include "eglstate.h"
 #include "bcm_host.h"
-#include <assert.h>
-#include <stdio.h>
+#include "eglstate.h"
+#include "oglinit.h"
+
+static inline int32_t limit(int32_t x, int32_t min, int32_t max)
+{
+        return x < min ? min : (x > max ? max : x);
+}
 
 // setWindowParams sets the dispmanx rects used for displaying the windows,
 // Need to prevent it from going fully off screen.
@@ -366,6 +372,7 @@ void hideCursor(cursor_t * cursor) {
 // Move the cursor
 __attribute__((visibility("hidden")))
 void moveCursor(STATE_T * state, cursor_t * cursor, int32_t x, int32_t y) {
+/*
         if (x < 0)
                 x = 0;
         if (x >= (int32_t) state->render_base.window.width)
@@ -374,6 +381,9 @@ void moveCursor(STATE_T * state, cursor_t * cursor, int32_t x, int32_t y) {
                 y = 0;
         if (y >= (int32_t) state->render_base.window.height)
                 y = (int32_t) state->render_base.window.height - 1;
+*/
+        x = limit(x, 0, (int32_t)state->render_base.window.width - 1);
+        y = limit(y, 0, (int32_t)state->render_base.window.height - 1);
         VC_RECT_T src_rect, dst_rect;
         cursor->xpos = x;
         cursor->ypos = y;

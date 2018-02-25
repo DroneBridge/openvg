@@ -175,8 +175,10 @@ int main(void) {
 //                        WindowPosition(sub_window, count, 450);
                         WindowPosition(NULL, 100+count, 100);
                 }
-                ScreenshotSaveAsPng("screenshot.png", 9);
+                ScreenshotSaveAsPng("screenshot.png", 0, 0, 0, 0, 9);
                 DeleteCursor();
+                ScreenshotSaveAsPng("topleft.png", -100, -100, 960, 540, 9);
+                ScreenshotSaveAsPng("bottomright.png", 960, 540, 2000, 2000, 9);
         }
         if (sub_window) {
                 DeleteRenderTarget(sub_window);

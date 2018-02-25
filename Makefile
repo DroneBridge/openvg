@@ -21,7 +21,7 @@ FONTFILES=DejaVuSans.inc  DejaVuSansMono.inc DejaVuSerif.inc
 
 all:	font2openvg libshapes.so
 
-libshapes.o:	libshapes.c shapes.h fontinfo.h fontsystem.h $(FONTFILES)
+libshapes.o:	libshapes.c shapes.h oglinit.h eglstate.h fontinfo.h fontsystem.h $(FONTFILES)
 	$(CC) $(CCOPTS) $(INCLUDEFLAGS) -c libshapes.c
 
 fontsystem.o:	fontsystem.c fontinfo.h fontsystem.h
@@ -30,7 +30,7 @@ fontsystem.o:	fontsystem.c fontinfo.h fontsystem.h
 gopenvg:	openvg.go
 	go install .
 
-oglinit.o:	oglinit.c
+oglinit.o:	oglinit.c oglinit.h eglstate.h
 	$(CC) $(CCOPTS) $(INCLUDEFLAGS) -c oglinit.c
 
 font2openvg:	fontutil/font2openvg.cpp

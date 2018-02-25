@@ -22,6 +22,7 @@
 #include "DejaVuSerif.inc"
 #include "DejaVuSansMono.inc"
 #include "eglstate.h"					   // data structures for graphics state
+#include "oglinit.h"
 #include "fontinfo.h"					   // font data structure
 #include "shapes.h"					   // Needed to check prototypes
 #include "fontsystem.h"
@@ -57,6 +58,12 @@ static VGPaint stroke_paint = VG_INVALID_HANDLE;
 
 // Pointer cursor
 static cursor_t *priv_cursor = NULL;
+
+// Useful function to limit x so that it satisfies (min <= x <= max)
+static inline VGint limit(VGint x, VGint min, VGint max)
+{
+        return x < min ? min : (x > max ? max : x);
+}
 
 //
 // Terminal settings
@@ -1331,23 +1338,21 @@ static char *grabWindow(VGint x, VGint y, VGint * w, VGint * h) {
         VGint window_width = (VGint) state->render_target->window.width;
         VGint window_height = (VGint) state->render_target->window.height;
 
-	// If either x,y is off screen then set to 0
-        if ((x < 0) || (x > window_width))
-		x = 0;
-        if ((y < 0) || (y > window_height))
-		y = 0;
-	// Now make sure w,h is valid, reducing if need be
+	// If either x,y is outside the window then move it in
+	x = limit(x, 0, window_width);
+        y = limit(y, 0, window_height);
+	// Now make sure w,h is valid, reducing if need be, 0 = to the end
 	VGint width = *w;
 	VGint height = *h;
-	if (width <= 0)
-		width = window_width;
-	if ((x + width) > window_width)
-		width = window_width - x;
-	if (height <= 0)
-		height = window_height;
-	if ((y + height) > window_height)
-		height = window_height - y;
-	*w = width;
+        if (width == 0)
+                width = window_width - x;
+        else
+                width = limit(width, 1, window_width - x);
+        if (height == 0)
+                height = window_height - y;
+        else
+                height = limit(height, 1, window_height - y);
+        *w = width;
 	*h = height;
 	char *ScreenBuffer = malloc((size_t) (width * height * 4));
 	if (ScreenBuffer)
@@ -1404,8 +1409,20 @@ bool WindowSaveAsPng(const char *filename, VGint x, VGint y, VGint w, VGint h, i
 	return success;
 }
 
-bool ScreenshotSaveAsPng(const char *filename, int zlib_level) {
+bool ScreenshotSaveAsPng(const char *filename, VGint x, VGint y,
+                         VGint width, VGint height, int zlib_level) {
 	bool success = false;
+        x = limit(x, 0, state->screen_width - 1);
+        y = limit(y, 0, state->screen_height - 1);
+        if (width == 0)
+                width = state->screen_width - x;
+        else
+                width = limit(width, 1, state->screen_width - x);
+        if (height == 0)
+                height = state->screen_height - y;
+        else
+                height = limit(height, 1, state->screen_height - y);
+
 	png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING,
 						      NULL, NULL, NULL);
 	if (png_ptr == NULL) {
@@ -1414,8 +1431,6 @@ bool ScreenshotSaveAsPng(const char *filename, int zlib_level) {
 	png_infop info_ptr = png_create_info_struct(png_ptr);
 	if (info_ptr != NULL) {
 		FILE *file = NULL;
-		int width = state->screen_width;
-		int height = state->screen_height;
                 int pitch = state->screen_pitch;
 		char *image = grabScreen(state);
 		if (image != NULL) {
@@ -1430,17 +1445,14 @@ bool ScreenshotSaveAsPng(const char *filename, int zlib_level) {
 					png_write_info(png_ptr, info_ptr);
 					png_set_packing(png_ptr);
 					png_set_filler(png_ptr, 0, PNG_FILLER_AFTER);
-					png_bytep row_pointer;
-					row_pointer = (png_bytep) image;
-					VGint row;
-					for (row = height; row; row--) {
+					png_bytep row_pointer = (png_bytep) image + (y * pitch) + (x * 4);
+					for (VGint row = height; row; row--) {
 						png_write_rows(png_ptr, &row_pointer, 1);
 						row_pointer += pitch;
 					}
 					png_write_end(png_ptr, info_ptr);
 					success = true;
-				} else
-					success = false;
+				}
 				fclose(file);
 			}
 			free(image);
