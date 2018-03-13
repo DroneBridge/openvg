@@ -12,6 +12,13 @@
 extern "C" {
 #endif
 
+        typedef enum imageformat_e
+        {
+                SHAPES_RAW = 0,
+                SHAPES_PNG,
+                SHAPES_JPEG
+        } imageformat_e;
+        
 #ifdef __GNUC__
 #define DEPRECATED __attribute__((__deprecated__))
 #else
@@ -97,10 +104,13 @@ extern "C" {
 
 	extern void AreaClear(VGint x, VGint y, VGint w, VGint h);
 	extern void WindowClear(void);
-	extern void WindowOpacity(void *window, uint32_t alpha);
-	extern void WindowPosition(void *window, int32_t x, int32_t y);
-	extern bool WindowSaveAsPng(const char *filename, VGint x, VGint y, VGint w, VGint h, int zlib_level);
-        extern bool ScreenshotSaveAsPng(const char *filename, VGint x, VGint y, VGint w, VGint h, int zlib_level);
+	extern void WindowOpacity(renderobj_t *window, uint32_t alpha);
+	extern void WindowPosition(renderobj_t *window, int32_t x, int32_t y);
+	extern bool WindowSaveAsPng(const char *filename, renderobj_t *window, VGuint x, VGuint y, VGuint w, VGuint h, int zlib_level);
+        extern bool WindowSaveAsJpeg(const char *filename, renderobj_t *window, VGuint x, VGuint y, VGuint w, VGuint h, int quality);
+        extern bool ScreenshotSaveAsPng(const char *filename, VGuint x, VGuint y, VGuint w, VGuint h, int zlib_level);
+        extern bool ScreenshotSaveAsJpeg(const char *filename, VGuint x, VGuint y, VGuint w, VGuint h, int quality);
+        extern bool WindowSaveAs(imageformat_e format, const char *filename, renderobj_t *window, VGuint x, VGuint y, VGuint w, VGuint h, int quality);
 	extern VGImage CreateImageFromPng(const char *filename);
 	extern void DrawImageAt(VGfloat x, VGfloat y, VGImage image);
 	extern void DrawImageAtFit(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGImage image);

@@ -1049,7 +1049,7 @@ void AreaClear(VGint x, VGint y, VGint w, VGint h) {
 }
 
 // WindowOpacity sets the  window opacity
-void WindowOpacity(void *window, uint32_t a) {
+void WindowOpacity(renderobj_t *window, uint32_t a) {
         renderobj_t *entry;
         
         if (window == NULL)
@@ -1063,7 +1063,7 @@ void WindowOpacity(void *window, uint32_t a) {
 }
 
 // WindowPosition moves the window to given position
-void WindowPosition(void *window, int32_t x, int32_t y) {
+void WindowPosition(renderobj_t *window, int32_t x, int32_t y) {
         renderobj_t *entry;
         
         if (window == NULL)
@@ -1334,37 +1334,49 @@ void StrokePaint(VGPaint paint) {
 }
 
 // Take a copy of an area of the window ready for saving
-static char *grabWindow(VGint x, VGint y, VGint * w, VGint * h) {
-        VGint window_width = (VGint) state->render_target->window.width;
-        VGint window_height = (VGint) state->render_target->window.height;
-
-	// If either x,y is outside the window then move it in
-	x = limit(x, 0, window_width);
-        y = limit(y, 0, window_height);
+static char *grabWindow(renderobj_t *window, uint32_t x, uint32_t y,
+                        uint32_t * w, uint32_t * h) {
+        renderobj_t *orig_render_target = NULL;
+        
+        if (window == NULL)
+                window = state->render_target;
+        if (findRenderObj(state, window) == NULL)
+            return NULL;
+        if (window != state->render_target) {
+                orig_render_target = state->render_target;
+                SetRenderTarget(window);
+        }
+        
+        if (x >= window->window.width)
+                x = window->window.width - 1;
+        if (y >= window->window.height)
+                y = window->window.height - 1;
 	// Now make sure w,h is valid, reducing if need be, 0 = to the end
-	VGint width = *w;
-	VGint height = *h;
-        if (width == 0)
-                width = window_width - x;
-        else
-                width = limit(width, 1, window_width - x);
-        if (height == 0)
-                height = window_height - y;
-        else
-                height = limit(height, 1, window_height - y);
+	uint32_t width = *w;
+	uint32_t height = *h;
+        if (width == 0 || width > window->window.width - x)
+                width = window->window.width - x;
+        if (height == 0 || height > window->window.height - y)
+                height = window->window.height - y;
         *w = width;
 	*h = height;
 	char *ScreenBuffer = malloc((size_t) (width * height * 4));
 	if (ScreenBuffer)
 		vgReadPixels(ScreenBuffer, width * 4, VG_sABGR_8888, x, y, width, height);
+
+        if (orig_render_target != NULL)
+                SetRenderTarget(orig_render_target);
+        
 	return ScreenBuffer;
 }
 
-// Save an area of the window from (x,y) at a size of (w,h) to a .png
-// file. Returns true on success.
+// Disable gcc clobber warning
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wclobbered"
-bool WindowSaveAsPng(const char *filename, VGint x, VGint y, VGint w, VGint h, int zlib_level) {
+// Save an area of the window from (x,y) at a size of (w,h) to a .png
+// file. Returns true on success.
+bool WindowSaveAsPng(const char *filename, renderobj_t *window,
+                     VGuint x, VGuint y, VGuint w, VGuint h, int zlib_level) {
 	bool success = false;
 	png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING,
 						      NULL, NULL, NULL);
@@ -1373,13 +1385,12 @@ bool WindowSaveAsPng(const char *filename, VGint x, VGint y, VGint w, VGint h, i
 	}
 	png_infop info_ptr = png_create_info_struct(png_ptr);
 	if (info_ptr) {
-		FILE *file = NULL;
-		int width = w;
-		int height = h;
-		char *image = grabWindow(x, y, &width, &height);
+		uint32_t width = w;
+		uint32_t height = h;
+		char *image = grabWindow(window, x, y, &width, &height);
 		if (image != NULL) {
-			file = fopen(filename, "wb");
-			if (file) {
+			FILE *file = fopen(filename, "wb");
+			if (file != NULL) {
 				if (!setjmp(png_jmpbuf(png_ptr))) {
 					png_init_io(png_ptr, file);
 					png_set_IHDR(png_ptr, info_ptr, width, height,
@@ -1391,8 +1402,7 @@ bool WindowSaveAsPng(const char *filename, VGint x, VGint y, VGint w, VGint h, i
 					png_set_filler(png_ptr, 0, PNG_FILLER_AFTER);
 					png_bytep row_pointer;
 					row_pointer = (png_bytep) image + width * 4 * height;
-					VGint row;
-					for (row = height; row; row--) {
+					for (uint32_t row = height; row; row--) {
 						row_pointer -= width * 4;
 						png_write_rows(png_ptr, &row_pointer, 1);
 					}
@@ -1409,19 +1419,60 @@ bool WindowSaveAsPng(const char *filename, VGint x, VGint y, VGint w, VGint h, i
 	return success;
 }
 
-bool ScreenshotSaveAsPng(const char *filename, VGint x, VGint y,
-                         VGint width, VGint height, int zlib_level) {
+bool WindowSaveAsJpeg(const char *filename, renderobj_t *window,
+                      VGuint x, VGuint y, VGuint w, VGuint h, int quality) {
 	bool success = false;
-        x = limit(x, 0, state->screen_width - 1);
-        y = limit(y, 0, state->screen_height - 1);
-        if (width == 0)
+	struct jpeg_compress_struct cinfo;
+        struct jpeg_error_mgr jerr;
+        cinfo.err = jpeg_std_error(&jerr);
+        jpeg_create_compress(&cinfo);
+        uint32_t width = w;
+        uint32_t height = h;
+        char *image = grabWindow(window, x, y, &width, &height);
+        if (image != NULL) {
+                FILE *file = fopen(filename, "wb");
+                if (file != NULL) {
+                        jpeg_stdio_dest(&cinfo, file);
+                        cinfo.image_width = width;
+                        cinfo.image_height = height;
+                        cinfo.input_components = 3;
+                        cinfo.in_color_space = JCS_RGB;
+                        jpeg_set_quality(&cinfo, quality, TRUE);
+                        jpeg_set_defaults(&cinfo);
+                        jpeg_start_compress(&cinfo, TRUE);
+                        JSAMPLE row[width * 3];
+                        JSAMPROW row_pointer = &row[0];
+                        while(cinfo.next_scanline < height) {
+                                char *src_row = image + (height - cinfo.next_scanline - 1) * width * 4;
+                                for(uint32_t col = 0; col < width; col++) {
+                                        row[col * 3] = *src_row++;
+                                        row[col * 3 + 1] = *src_row++;
+                                        row[col * 3 + 2] = *src_row;
+                                        src_row += 2;
+                                }
+                                jpeg_write_scanlines(&cinfo, &row_pointer, 1);
+                        }
+                        jpeg_finish_compress(&cinfo);
+                        fclose(file);
+                        success = true;
+                }
+        }
+        free(image);
+	jpeg_destroy_compress(&cinfo);
+	return success;
+}
+
+bool ScreenshotSaveAsPng(const char *filename, VGuint x, VGuint y,
+                         VGuint width, VGuint height, int zlib_level) {
+	bool success = false;
+        if (x >= state->screen_width)
+                x = state->screen_width - 1;
+        if (y >= state->screen_height)
+                y = state->screen_height - 1;
+        if (width == 0 || width >= state->screen_width - x)
                 width = state->screen_width - x;
-        else
-                width = limit(width, 1, state->screen_width - x);
-        if (height == 0)
+        if (height == 0 || height >= state->screen_height - y)
                 height = state->screen_height - y;
-        else
-                height = limit(height, 1, state->screen_height - y);
 
 	png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING,
 						      NULL, NULL, NULL);
@@ -1430,11 +1481,10 @@ bool ScreenshotSaveAsPng(const char *filename, VGint x, VGint y,
 	}
 	png_infop info_ptr = png_create_info_struct(png_ptr);
 	if (info_ptr != NULL) {
-		FILE *file = NULL;
                 int pitch = state->screen_pitch;
 		char *image = grabScreen(state);
 		if (image != NULL) {
-			file = fopen(filename, "wb");
+			FILE *file = fopen(filename, "wb");
 			if (file != NULL) {
 				if (!setjmp(png_jmpbuf(png_ptr))) {
 					png_init_io(png_ptr, file);
@@ -1461,7 +1511,96 @@ bool ScreenshotSaveAsPng(const char *filename, VGint x, VGint y,
 	png_destroy_write_struct(&png_ptr, &info_ptr);
 	return success;
 }
+
+bool ScreenshotSaveAsJpeg(const char *filename, VGuint x, VGuint y,
+                          VGuint width, VGuint height, int quality) {
+	bool success = false;
+
+        if (x >= state->screen_width)
+                x = state->screen_width - 1;
+        if (y >= state->screen_height)
+                y = state->screen_height - 1;
+        if (width == 0 || width >= state->screen_width - x)
+                width = state->screen_width - x;
+        if (height == 0 || height >= state->screen_height - y)
+                height = state->screen_height - y;
+
+        struct jpeg_compress_struct cinfo;
+        struct jpeg_error_mgr jerr;
+        cinfo.err = jpeg_std_error(&jerr);
+        jpeg_create_compress(&cinfo);
+        char *image = grabScreen(state);
+        if (image != NULL) {
+                FILE *file = fopen(filename, "wb");
+                if (file != NULL) {
+                        jpeg_stdio_dest(&cinfo, file);
+                        cinfo.image_width = width;
+                        cinfo.image_height = height;
+                        cinfo.input_components = 3;
+                        cinfo.in_color_space = JCS_RGB;
+                        jpeg_set_quality(&cinfo, quality, TRUE);
+                        jpeg_set_defaults(&cinfo);
+                        jpeg_start_compress(&cinfo, TRUE);
+                        JSAMPLE row[width * 3];
+                        JSAMPROW row_pointer = &row[0];
+                        while(cinfo.next_scanline < height) {
+                                char *src_row = image + ((y + cinfo.next_scanline) * state->screen_width + x) * 4;
+                                for(uint32_t col = 0; col < width; col++) {
+                                        row[col * 3] = *src_row++;
+                                        row[col * 3 + 1] = *src_row++;
+                                        row[col * 3 + 2] = *src_row;
+                                        src_row += 2;
+                                }
+                                jpeg_write_scanlines(&cinfo, &row_pointer, 1);
+                        }
+                        jpeg_finish_compress(&cinfo);
+                        fclose(file);
+                        success = true;
+                }
+        }
+        free(image);
+	jpeg_destroy_compress(&cinfo);
+	return success;
+}
 #pragma GCC diagnostic pop
+
+bool WindowSaveAs(imageformat_e format, const char *filename,
+                  renderobj_t *window, VGuint x, VGuint y,
+                  VGuint width, VGuint height, int quality)
+{
+        bool status = false;
+        if (window == NULL) {
+                switch (format) {
+                    case SHAPES_RAW:
+                            status = false;
+                            break;
+                    case SHAPES_PNG:
+                            status = ScreenshotSaveAsPng(filename, x, y, width, height, quality);
+                            break;
+                    case SHAPES_JPEG:
+                            status = ScreenshotSaveAsJpeg(filename, x, y, width, height, quality);
+                            break;
+                    default:
+                            status = false;
+                }
+        }
+        else {
+                switch (format) {
+                    case SHAPES_RAW:
+                            status = false;
+                            break;
+                    case SHAPES_PNG:
+                            status = WindowSaveAsPng(filename, window, x, y, width, height, quality);
+                            break;
+                    case SHAPES_JPEG:
+                            status = WindowSaveAsJpeg(filename, window, x, y, width, height, quality);
+                            break;
+                    default:
+                            status = false;
+                }
+        }
+        return status;
+}
 
  // Load a PNG from filename into a VGImage, return width & height in
  // pointers. For now we'll use the basic high-level reading.

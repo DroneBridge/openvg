@@ -175,10 +175,20 @@ int main(void) {
 //                        WindowPosition(sub_window, count, 450);
                         WindowPosition(NULL, 100+count, 100);
                 }
-                ScreenshotSaveAsPng("screenshot.png", 0, 0, 0, 0, 9);
+                WindowSaveAsPng("full.png", NULL, 0, 0, 0, 0, 9);
+                WindowSaveAsPng("topleft.png", NULL, 0, 0, 960, 540, 9);
+                WindowSaveAsPng("bottomright.png", NULL, 960, 540, 2000, 2000, 9);
+                WindowSaveAsPng("subwin.png", sub_window, 0, 0, 0, 0, 9);
+                
+                WindowSaveAsJpeg("full.jpg", NULL, 0, 0, 0, 0, 50);
+                WindowSaveAsJpeg("topleft.jpg", NULL, 0, 0, 960, 540, 50);
+                WindowSaveAsJpeg("bottomright.jpg", NULL, 960, 540, 2000, 2000, 50);
+                WindowSaveAsJpeg("subwin.jpg", sub_window, 0, 0, 0, 0, 50);
                 DeleteCursor();
-                ScreenshotSaveAsPng("topleft.png", -100, -100, 960, 540, 9);
-                ScreenshotSaveAsPng("bottomright.png", 960, 540, 2000, 2000, 9);
+                WindowSaveAs(SHAPES_PNG, "screenshot.png", NULL, 0, 0, 0, 0, 9);
+                WindowSaveAs(SHAPES_JPEG, "screenshot.jpg", NULL, 0, 0, 0, 0, 50);
+                WindowSaveAs(SHAPES_PNG, "sub_win.png", sub_window, 0, 0, 0, 0, 9);
+                WindowSaveAs(SHAPES_JPEG, "sub_win.jpg", sub_window, 0, 0, 0, 0, 9);
         }
         if (sub_window) {
                 DeleteRenderTarget(sub_window);

@@ -196,12 +196,13 @@ void oglinit(STATE_T * state)
 __attribute__((visibility("hidden")))
 void oglEnd(STATE_T * state)
 {
-        renderobj_t *curr;
-        
         eglMakeCurrent(state->egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE,
                        EGL_NO_CONTEXT);
-        for(curr=state->render_list; curr != NULL; curr = curr->next) {
+        renderobj_t *curr = state->render_list;
+        while (curr != NULL) {
+                renderobj_t *next = curr->next;
                 delRenderObj(state, curr);
+                curr = next;
         }
         
 	eglDestroySurface(state->egl_display,
@@ -372,16 +373,6 @@ void hideCursor(cursor_t * cursor) {
 // Move the cursor
 __attribute__((visibility("hidden")))
 void moveCursor(STATE_T * state, cursor_t * cursor, int32_t x, int32_t y) {
-/*
-        if (x < 0)
-                x = 0;
-        if (x >= (int32_t) state->render_base.window.width)
-                x = (int32_t) state->render_base.window.width - 1;
-        if (y < 0)
-                y = 0;
-        if (y >= (int32_t) state->render_base.window.height)
-                y = (int32_t) state->render_base.window.height - 1;
-*/
         x = limit(x, 0, (int32_t)state->render_base.window.width - 1);
         y = limit(y, 0, (int32_t)state->render_base.window.height - 1);
         VC_RECT_T src_rect, dst_rect;
