@@ -3,7 +3,7 @@ ifdef RPISDK
 endif
 
 CC = $(CROSS_COMPILE)gcc
-CCOPTS = -std=gnu99 -Wall -Wextra -Wconversion -Wdouble-promotion -Wshadow -Wno-sign-conversion -Wfatal-errors -Wunused -Wcast-qual -Wmissing-prototypes -Wunreachable-code -Wwrite-strings -Warray-bounds -Wstrict-aliasing=3 -Wstrict-overflow=1 -Winline -Wswitch -Wmissing-include-dirs -Woverlength-strings -Wpacked -Wdisabled-optimization  -Wformat=2 -Winit-self -Wunused-parameter -Wlogical-op -Wuninitialized -Wnested-externs -Wpointer-arith -Wunused-macros -Wunsafe-loop-optimizations
+CCOPTS = -std=gnu99 -Wall -Wextra -Wconversion -Wdouble-promotion -Wshadow -Wsign-conversion -Wfatal-errors -Wunused -Wcast-qual -Wmissing-prototypes -Wunreachable-code -Wwrite-strings -Warray-bounds -Wstrict-aliasing=3 -Wstrict-overflow=1 -Winline -Wswitch -Wmissing-include-dirs -Woverlength-strings -Wpacked -Wdisabled-optimization  -Wformat=2 -Winit-self -Wunused-parameter -Wlogical-op -Wuninitialized -Wnested-externs -Wpointer-arith -Wunused-macros -Wunsafe-loop-optimizations
 
 OBJCOPY = $(CROSS_COMPILE)objcopy
 

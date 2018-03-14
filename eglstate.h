@@ -2,7 +2,10 @@
 #define LIBSHAPES_EGLSTATE_H
 
 #include <stdbool.h>
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-conversion"
 #include "bcm_host.h"
+#pragma GCC diagnostic pop
 #include <EGL/egl.h>
 #include <VG/openvg.h>
 

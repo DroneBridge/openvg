@@ -14,6 +14,7 @@
 #include <assert.h>
 #include <jpeglib.h>
 #include <png.h>
+#include "shapes.h"					   // Needed to check prototypes
 #include "VG/openvg.h"
 #include "VG/vgu.h"
 #include "EGL/egl.h"
@@ -24,7 +25,6 @@
 #include "eglstate.h"					   // data structures for graphics state
 #include "oglinit.h"
 #include "fontinfo.h"					   // font data structure
-#include "shapes.h"					   // Needed to check prototypes
 #include "fontsystem.h"
 
 static STATE_T _state, *state = &_state;	// global graphics state
@@ -86,7 +86,7 @@ void saveterm(void) {
 // rawterm sets the terminal to raw mode
 void RawTerm(void) {
 	memcpy(&new_term_attr, &orig_term_attr, sizeof(struct termios));
-	new_term_attr.c_lflag &= ~(ICANON | ECHO | ECHOE | ECHOK | ECHONL | ECHOPRT | ECHOKE | ICRNL);
+	new_term_attr.c_lflag &= (uint32_t)~(ICANON | ECHO | ECHOE | ECHOK | ECHONL | ECHOPRT | ECHOKE | ICRNL);
 	new_term_attr.c_cc[VTIME] = 0;
 	new_term_attr.c_cc[VMIN] = 0;
 	tcsetattr(fileno(stdin), TCSANOW, &new_term_attr);
@@ -675,7 +675,7 @@ static void setstop(VGPaint paint, VGfloat * stops, VGint n) {
 	VGboolean multmode = VG_FALSE;
 	VGColorRampSpreadMode spreadmode = VG_COLOR_RAMP_SPREAD_REPEAT;
 	vgSetParameteri(paint, VG_PAINT_COLOR_RAMP_SPREAD_MODE, spreadmode);
-	vgSetParameteri(paint, VG_PAINT_COLOR_RAMP_PREMULTIPLIED, multmode);
+	vgSetParameteri(paint, VG_PAINT_COLOR_RAMP_PREMULTIPLIED, (VGint)multmode);
 	vgSetParameterfv(paint, VG_PAINT_COLOR_RAMP_STOPS, 5 * n, stops);
 	vgSetPaint(paint, VG_FILL_PATH);
 }
@@ -1077,7 +1077,7 @@ void WindowPosition(renderobj_t *window, int32_t x, int32_t y) {
                                 MoveHWCursor(priv_cursor->xpos, priv_cursor->ypos);
                 }
                 if (entry->type == RENDEROBJ_WINDOW) {
-                        y = (int32_t)state->render_base.window.height - 1 - y - entry->window.height;
+                        y = (int32_t)state->render_base.window.height - 1 - y - (int32_t)entry->window.height;
                         dispmanMoveWindow(state, &entry->window, x, y);
                 }
         }
@@ -1362,7 +1362,7 @@ static char *grabWindow(renderobj_t *window, uint32_t x, uint32_t y,
 	*h = height;
 	char *ScreenBuffer = malloc((size_t) (width * height * 4));
 	if (ScreenBuffer)
-		vgReadPixels(ScreenBuffer, width * 4, VG_sABGR_8888, x, y, width, height);
+		vgReadPixels(ScreenBuffer, (VGint)width * 4, VG_sABGR_8888, (VGint)x, (VGint)y, (VGint)width, (VGint)height);
 
         if (orig_render_target != NULL)
                 SetRenderTarget(orig_render_target);
@@ -1481,7 +1481,7 @@ bool ScreenshotSaveAsPng(const char *filename, VGuint x, VGuint y,
 	}
 	png_infop info_ptr = png_create_info_struct(png_ptr);
 	if (info_ptr != NULL) {
-                int pitch = state->screen_pitch;
+                uint32_t pitch = state->screen_pitch;
 		char *image = grabScreen(state);
 		if (image != NULL) {
 			FILE *file = fopen(filename, "wb");
@@ -1496,7 +1496,7 @@ bool ScreenshotSaveAsPng(const char *filename, VGuint x, VGuint y,
 					png_set_packing(png_ptr);
 					png_set_filler(png_ptr, 0, PNG_FILLER_AFTER);
 					png_bytep row_pointer = (png_bytep) image + (y * pitch) + (x * 4);
-					for (VGint row = height; row; row--) {
+					for (VGuint row = height; row; row--) {
 						png_write_rows(png_ptr, &row_pointer, 1);
 						row_pointer += pitch;
 					}
@@ -1635,7 +1635,7 @@ VGImage CreateImageFromPng(const char *filename) {
 	png_bytep *row_ptrs = NULL;
 	if (!setjmp(png_jmpbuf(png_ptr))) {
 		png_init_io(png_ptr, file);
-		png_set_sig_bytes(png_ptr, sig_bytes);
+		png_set_sig_bytes(png_ptr, (int)sig_bytes);
 		png_read_info(png_ptr, info_ptr);
 		png_get_IHDR(png_ptr, info_ptr, &width, &height, &bpp, &colour, &interlace, NULL, NULL);
 		if (bpp == 16)
@@ -1666,9 +1666,9 @@ VGImage CreateImageFromPng(const char *filename) {
 		}
 		png_read_image(png_ptr, row_ptrs);
 		png_read_end(png_ptr, info_ptr);
-		image = vgCreateImage(VG_sABGR_8888, width, height, VG_IMAGE_QUALITY_BETTER);
+		image = vgCreateImage(VG_sABGR_8888, (VGint)width, (VGint)height, VG_IMAGE_QUALITY_BETTER);
 		if (image != VG_INVALID_HANDLE)
-			vgImageSubData(image, buffer, width * 4, VG_sABGR_8888, 0, 0, width, height);
+			vgImageSubData(image, buffer, (VGint)width * 4, VG_sABGR_8888, 0, 0, (VGint)width, (VGint)height);
 		else
 			vg_error_code = vgGetError();
 	}
@@ -1761,12 +1761,12 @@ bool CreateCursorFromVGImage(VGImage img, uint32_t hot_x, uint32_t hot_y) {
 		return false;
 	}
 
-	uint32_t *data = malloc(w * 4 * h);
+	uint32_t *data = malloc((size_t)(w * 4 * h));
 	if (data == NULL)
 		return false;
 
 	vgGetImageSubData(img, data, w * 4, VG_sABGR_8888, 0, 0, w, h);
-	priv_cursor = createCursor(state, data, w, h, hot_x, hot_y, true);
+	priv_cursor = createCursor(state, data, (uint32_t)w, (uint32_t)h, hot_x, hot_y, true);
 	free(data);
 	return (priv_cursor != NULL);
 }
@@ -1820,8 +1820,8 @@ renderobj_t *CreateRenderTargetToImage(VGImage image)
 renderobj_t *CreateRenderTargetWindow(int32_t layer, int32_t x, int32_t y,
                                       uint32_t width, uint32_t height)
 {
-        y = (int32_t)state->render_base.window.height - 1 - y - height;
-        renderobj_t *obj = makeRenderObjWindow(state, layer,
+        y = (int32_t)state->render_base.window.height - 1 - y - (int32_t)height;
+        renderobj_t *obj = makeRenderObjWindow(state, (uint32_t)layer,
                                                x, y, width, height);
         return obj;
 }

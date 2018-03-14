@@ -1,10 +1,10 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include "eglstate.h"
+#include "bcm_host.h"
 #include <EGL/egl.h>
 #include <VG/openvg.h>
-#include "bcm_host.h"
-#include "eglstate.h"
 #include "oglinit.h"
 
 static inline int32_t limit(int32_t x, int32_t min, int32_t max)
@@ -21,35 +21,35 @@ static void setWindowParams(STATE_T * state, window_t * window, VC_RECT_T * src_
         if (window == &state->render_base.window) {
                 min_x = 0;
                 min_y = 0;
-                max_x = state->screen_width;
-                max_y = state->screen_height;
+                max_x = (int32_t)state->screen_width;
+                max_y = (int32_t)state->screen_height;
         }
         else {
                 min_x = state->render_base.window.xpos;
                 min_y = state->render_base.window.ypos;
-                max_x = state->render_base.window.width + min_x;
-                max_y = state->render_base.window.height + min_y;
+                max_x = (int32_t)state->render_base.window.width + min_x;
+                max_y = (int32_t)state->render_base.window.height + min_y;
         }
                 
 	// Set source & destination rectangles so that the image is
 	// clipped if it goes off screen.
 	if (window->xpos < (min_x + 1 - (int)window->width)) {   // Too far off left
 		window->xpos = min_x + 1 - (int)window->width;
-		dx = min_x;
+		dx = (uint32_t)min_x;
 		sx = window->width - 1;
 		w = 1;
 	} else if (window->xpos < min_x) {			   // Part of left is off
-		dx = min_x;
-		sx = min_x - window->xpos;
+		dx = (uint32_t)min_x;
+		sx = (uint32_t)(min_x - window->xpos);
 		w = window->width - sx;
-	} else if (window->xpos < (int)(max_x - window->width)) {	// On
-		dx = window->xpos;
+	} else if (window->xpos < (int)(max_x - (int32_t)window->width)) {	// On
+		dx = (uint32_t)window->xpos;
 		sx = 0;
 		w = window->width;
 	} else if (window->xpos < max_x) {	   // Part of right is off
-		dx = window->xpos;
+		dx = (uint32_t)window->xpos;
 		sx = 0;
-		w = max_x - window->xpos;
+		w = (uint32_t)(max_x - window->xpos);
 	} else {					   // Too far off right
 		window->xpos = max_x - 1;
 		dx = state->screen_width - 1;
@@ -59,24 +59,24 @@ static void setWindowParams(STATE_T * state, window_t * window, VC_RECT_T * src_
 
 	if (window->ypos < (min_y + 1 - (int)window->height)) {	   // Too far off top
 		window->ypos = min_y + 1 - (int)window->height;
-		dy = min_y;
+		dy = (uint32_t)min_y;
 		sy = window->height - 1;
 		h = 1;
 	} else if (window->ypos < min_y) {				   // Part of top is off
-		dy = min_y;
-		sy = min_y - window->ypos;
+		dy = (uint32_t)min_y;
+		sy = (uint32_t)(min_y - window->ypos);
 		h = window->height - sy;
-	} else if (window->ypos < (int)(max_y - window->height)) {	// On
-		dy = window->ypos;
+	} else if (window->ypos < (int)(max_y - (int32_t)window->height)) {	// On
+		dy = (uint32_t)window->ypos;
 		sy = 0;
 		h = window->height;
 	} else if (window->ypos < max_y) {	   // Part of bottom is off
-		dy = window->ypos;
+		dy = (uint32_t)window->ypos;
 		sy = 0;
-		h = max_y - window->ypos;
+		h = (uint32_t)((int32_t)max_y - window->ypos);
 	} else {					   // Wholly off bottom
 		window->ypos = max_y - 1;
-		dy = max_y - 1;
+		dy = (uint32_t)max_y - 1;
 		sy = 0;
 		h = 1;
 	}
@@ -138,7 +138,7 @@ void oglinit(STATE_T * state)
 	success = graphics_get_display_size(0, &state->screen_width,
 					    &state->screen_height);
 	assert(success >= 0);
-        state->screen_pitch = 4 * ((state->screen_width + 15) & ~15);
+        state->screen_pitch = 4 * ((state->screen_width + 15) & (uint32_t)~15);
         
 	if ((window->width == 0) || (window->width > state->screen_width))
 		window->width = state->screen_width;
@@ -168,8 +168,8 @@ void oglinit(STATE_T * state)
 
 	window->element = dispman_element;
         window->nativewindow.element = dispman_element;
-        window->nativewindow.width = window->width;
-        window->nativewindow.height = window->height;
+        window->nativewindow.width = (int)window->width;
+        window->nativewindow.height = (int)window->height;
 	vc_dispmanx_update_submit_sync(dispman_update);
 
 	window->surface = eglCreateWindowSurface(state->egl_display, config,
@@ -286,7 +286,7 @@ void dispmanChangeWindowOpacity(window_t * window, uint32_t alpha) {
 
 // Custom cursor pointer code.
 
-static inline int align_up(int x, int y) {
+static inline uint32_t align_up(uint32_t x, uint32_t y) {
 	return (x + y - 1) & ~(y - 1);
 }
 
@@ -297,7 +297,7 @@ cursor_t *createCursor(STATE_T * state, const uint32_t * data, uint32_t w, uint3
             h == 0 || h > state->render_base.window.height ||
             hx >= w || hy >= h)
 		return NULL;
-	int32_t pitch = align_up(w * 4, 64);
+	uint32_t pitch = align_up(w * 4, 64);
 	cursor_t *cursor = calloc(1, sizeof *cursor);
 	if (cursor == NULL)
 		return NULL;
@@ -308,7 +308,7 @@ cursor_t *createCursor(STATE_T * state, const uint32_t * data, uint32_t w, uint3
 	cursor->hot_y = (int32_t) hy;
 
 	// Copy image data
-	char *image = calloc(1, pitch * h);
+	char *image = calloc(1, (size_t)(pitch * h));
 	if (image == NULL) {
 		free(cursor);
 		return NULL;
@@ -333,9 +333,9 @@ cursor_t *createCursor(STATE_T * state, const uint32_t * data, uint32_t w, uint3
 		data += incr;
 	}
 
-	VC_RECT_T dst_rect = { 0, 0, w, h };
+	VC_RECT_T dst_rect = { 0, 0, (int)w, (int)h };
 	vc_dispmanx_resource_write_data(cursor->resource, VC_IMAGE_RGBA32,
-                                        pitch, image, &dst_rect);
+                                        (int)pitch, image, &dst_rect);
 	free(image);
 	cursor->window.element = 0;
 	return cursor;
@@ -521,8 +521,8 @@ renderobj_t *makeRenderObjImage(STATE_T *state, VGImage image)
         if (entry != NULL) {
                 entry->type = RENDEROBJ_IMAGE;
                 entry->image = image;
-                entry->window.width = vgGetParameteri(image, VG_IMAGE_WIDTH);
-                entry->window.height = vgGetParameteri(image, VG_IMAGE_HEIGHT);
+                entry->window.width = (uint32_t)vgGetParameteri(image, VG_IMAGE_WIDTH);
+                entry->window.height = (uint32_t)vgGetParameteri(image, VG_IMAGE_HEIGHT);
                 entry->window.context = context;
                 entry->window.surface = surface;
         }
@@ -677,7 +677,7 @@ renderobj_t *makeRenderObjWindow(STATE_T *state, uint32_t layer,
 	DISPMANX_UPDATE_HANDLE_T dispman_update;
 	dispman_update = vc_dispmanx_update_start(0);
 	window->element = vc_dispmanx_element_add(dispman_update,
-                                                  state->dmx_display, layer,
+                                                  state->dmx_display, (int)layer,
                                                   &dst_rect, 0, &src_rect,
                                                   DISPMANX_PROTECTION_NONE, 0,
                                                   0, DISPMANX_NO_ROTATE);
@@ -685,8 +685,8 @@ renderobj_t *makeRenderObjWindow(STATE_T *state, uint32_t layer,
 	vc_dispmanx_update_submit_sync(dispman_update);
         window->context = context;
         window->nativewindow.element = window->element;
-        window->nativewindow.width = width;
-        window->nativewindow.height = height;
+        window->nativewindow.width = (int)width;
+        window->nativewindow.height = (int)height;
 	window->surface = eglCreateWindowSurface(state->egl_display, config,
                                                  &window->nativewindow, NULL);
 	if (window->surface == EGL_NO_SURFACE) {
@@ -739,11 +739,11 @@ char *grabScreen(STATE_T *state) {
         uint32_t width = state->screen_width;
         uint32_t height = state->screen_height;
         uint32_t pitch = state->screen_pitch;
-        uint32_t vc_err;
+        int32_t vc_err;
 	char *screen_buffer = malloc((size_t) (pitch * height));
 	if (screen_buffer != NULL) {
                 DISPMANX_RESOURCE_HANDLE_T screenshot;
-                screenshot = vc_dispmanx_resource_create(VC_IMAGE_RGBA32, width, height, &vc_err);
+                screenshot = vc_dispmanx_resource_create(VC_IMAGE_RGBA32, width, height, (uint32_t*)&vc_err);
                 if (screenshot != 0) {
                         vc_err = vc_dispmanx_snapshot(state->dmx_display, screenshot, 0);
                         if (vc_err == 0) {
