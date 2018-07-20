@@ -12,7 +12,7 @@ CCOPTS = -O2
 endif
 
 INCLUDEFLAGS=-I$(RPISDK)/opt/vc/include -I$(RPISDK)/opt/vc/include/interface/vmcs_host/linux -I$(RPISDK)/opt/vc/include/interface/vcos/pthreads -I..
-LIBFLAGS= -Wl,-rpath=$(RPISDK)/opt/vc/lib -L$(RPISDK)/opt/vc/lib -lEGL -lGLESv2 -lbcm_host -pthread -ljpeg -lpng -lfreetype -lfontconfig -lz
+LIBFLAGS= -Wl,-rpath=$(RPISDK)/opt/vc/lib -L$(RPISDK)/opt/vc/lib -lbrcmEGL -lbrcmGLESv2 -lbcm_host -pthread -ljpeg -lpng -lfreetype -lfontconfig -lz
 
 all: shapedemo hellovg mouse-hellovg particles clip ptest dot
 

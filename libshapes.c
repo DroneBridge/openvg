@@ -481,13 +481,13 @@ bool InitShapes(int32_t * w, int32_t * h) {
 	if (dot_smooth_path == VG_INVALID_HANDLE)
 		err_state |= 1;
 	else
-		vguEllipse(dot_rough_path, 0.5f, 0.5f, 1.0f, 1.0f);
+		vguEllipse(dot_smooth_path, 0.5f, 0.5f, 1.0f, 1.0f);
 
 	dot_rough_path = vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_F, 1.0f, 0.0f, 4, 12, VG_PATH_CAPABILITY_APPEND_TO);
 	if (dot_rough_path == VG_INVALID_HANDLE)
 		err_state |= 1;
 	else
-		vguRect(dot_smooth_path, 0.0f, 0.0f, 1.0f, 1.0f);
+		vguRect(dot_rough_path, 0.0f, 0.0f, 1.0f, 1.0f);
 
 	if (err_state) {
 		fputs("Failed initialising libshapes paths.\n", stderr);
