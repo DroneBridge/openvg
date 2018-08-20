@@ -1724,6 +1724,24 @@ void DrawImageAtFit(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGImage image) {
 		vgSeti(VG_MATRIX_MODE, mm);
 }
 
+VGImage GetCroppedImage(VGint x, VGint y, VGint width, VGint height, VGImage image)
+{
+        VGImage sub_image = vgChildImage(image, x, y, width, height);
+        if (sub_image == VG_INVALID_HANDLE) {
+                vg_error_code = vgGetError();
+        }
+        return sub_image;
+}
+
+void DrawImageAtCrop(VGfloat x, VGfloat y, VGint img_x, VGint img_y, VGint width, VGint height, VGImage image)
+{
+        VGImage cropped = GetCroppedImage(img_x, img_y, width, height, image);
+        if (cropped != VG_INVALID_HANDLE) {
+                DrawImageAt(x, y, cropped);
+                vgDestroyImage(cropped);
+        }
+}
+
 //
 // Miscellaneous utility functions.
 //

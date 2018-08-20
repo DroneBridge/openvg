@@ -123,7 +123,7 @@ int main(void) {
                 VGfloat min_sw = 2.0f;
                 VGfloat max_sw = 100 * 2.0f;
                 VGfloat scaled_ratio = 1;
-                VGfloat scaled_w = min_sw;
+                VGfloat scaled_w = 50.0f;
                 VGfloat scaled_inc = 2.0f;
                 VGfloat rot_angle = 0.0f;
                 
@@ -141,7 +141,7 @@ int main(void) {
                 ShowCursor();
 
                 int count;
-                for (count = 0; count < 1; count++) {
+                for (count = 0; count < 1000; count++) {
                         MoveCursor(0, count % height);
                         WindowClear();
                         Circle(width / 2, 0, width); // Background
@@ -152,12 +152,20 @@ int main(void) {
                         VGfloat scaled_h = scaled_w * scaled_ratio;
                         VGfloat xpos = ((VGfloat)width - scaled_w) / 2.0f;
                         VGfloat ypos = ((VGfloat)height - scaled_h) / 2.0f;
-                        DrawImageAtFit(xpos, ypos, scaled_w, scaled_h, my_image);
+                        DrawImageAtFit(xpos, ypos, scaled_w, scaled_h, desert);
                         scaled_w += scaled_inc;
                         if (scaled_w < min_sw || scaled_w > max_sw) {
                                 scaled_w -= scaled_inc;
                                 scaled_inc = -scaled_inc;
                         }
+                        DrawImageAtCrop(10.0f, 400.0f,
+                                        scaled_w, 10, 128, 100, desert);
+                        VGImage sub_desert = GetCroppedImage(40, 30, 20, 10,
+                                                               desert);
+                        DrawImageAt(10.0f, 550.0f, sub_desert);
+                        vgDestroyImage(sub_desert);
+                        sub_desert = GetCroppedImage(0, 0, 2048, 2048, desert);
+                        
                                 // Draw the cursor in middle of screen
                                 // spinning around it's hotspot.
                         vgTranslate((VGfloat)width / 2.0f,
@@ -173,8 +181,9 @@ int main(void) {
                         }
 //			ScreenBrightness((count * 4) % 255);
 //                        WindowPosition(sub_window, count, 450);
-                        WindowPosition(NULL, 100+count, 100);
+//                        WindowPosition(NULL, 100+count, 100);
                 }
+                
                 WindowSaveAsPng("full.png", NULL, 0, 0, 0, 0, 9);
                 WindowSaveAsPng("topleft.png", NULL, 0, 0, 960, 540, 9);
                 WindowSaveAsPng("bottomright.png", NULL, 960, 540, 2000, 2000, 9);

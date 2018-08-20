@@ -114,6 +114,8 @@ extern "C" {
 	extern VGImage CreateImageFromPng(const char *filename);
 	extern void DrawImageAt(VGfloat x, VGfloat y, VGImage image);
 	extern void DrawImageAtFit(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGImage image);
+        extern void DrawImageAtCrop(VGfloat x, VGfloat y, VGint img_x, VGint img_y, VGint width, VGint height, VGImage image);
+        extern VGImage GetCroppedImage(VGint x, VGint y, VGint width, VGint height, VGImage image);
 	extern void CopyMatrixPathToImage(void);
 
 	// Outline shapes
