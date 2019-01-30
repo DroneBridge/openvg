@@ -1838,7 +1838,7 @@ renderobj_t *CreateRenderTargetToImage(VGImage image)
 renderobj_t *CreateRenderTargetWindow(int32_t layer, int32_t x, int32_t y,
                                       uint32_t width, uint32_t height)
 {
-        y = (int32_t)state->render_base.window.height - 1 - y - (int32_t)height;
+        y = (int32_t)state->render_base.window.height - y - (int32_t)height;
         renderobj_t *obj = makeRenderObjWindow(state, (uint32_t)layer,
                                                x, y, width, height);
         return obj;
