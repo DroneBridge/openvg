@@ -44,56 +44,61 @@ void grid(VGfloat x, VGfloat y, int n, int w, int h) {
 }
 // gradient demos linear and radial gradients
 void gradient(int width, int height) {
-	VGfloat x1, y1, x2, y2, cx, cy, fx, fy, r;
+	VGfloat x1, y1, x2, y2;
 	VGfloat w = (VGfloat)width;
 	VGfloat h = (VGfloat)height;
 	VGfloat dotcolor[4] = {0, 0, 0, 0.3};
-	
-	
+
+
 	VGfloat stops[] = {
-		0.0, 1.0, 1.0, 1.0, 1.0,
-		0.5, 0.5, 0.5, 0.5, 1.0,
+//		0.0, 1.0, 1.0, 1.0, 1.0,
+//		0.5, 0.5, 0.5, 0.5, 1.0,
+//		1.0, 0.0, 0.0, 0.0, 1.0
+		0.1, 0.0, 0.0, 0.0, 0.01,
+		0.2, 0.0, 0.0, 0.0, 0.1,
+		0.5, 0.0, 0.0, 0.0, 0.5,
 		1.0, 0.0, 0.0, 0.0, 1.0
 	};
-				
-	
+
+
 	x1 = w/8;
 	x2 = (w*3)/8;
 	y1 = h/3;
 	y2 = (h*2)/3;
-	cx = (w*3)/4;
-	cy = (h/2);
-	r = (x2-x1);
-	fx = cx + (r/4);
-	fy = cy + (r/4);
-	Start(w, h);
-	Background(128, 128, 128);
-	
 
-	FillLinearGradient(x1, y1, x2, y2, stops, 3);
+//	x1 = 1400;
+//	y1 = 950;
+
+//	x2 = 1919;
+//	y2 = 1079;
+
+	Start(w, h);
+
+//	Background(128, 128, 128);
+
+
+	FillLinearGradient(x1, y1, x2, y2, stops, 4);
 	Rect(x1, y1, x2-x1, y2-y1);
-	FillRadialGradient(cx, cy, fx, fy, r, stops, 3);
-	Circle(cx, cy, r);
-	
-	RGBA(.5, 0, 0, 0.3, dotcolor);
-	SetFill(dotcolor);
-	Circle(x1, y1, 10);
-	Circle(x2, y2, 10);
-	Circle(cx, cy, 10);
-	Circle(cx+r/2, cy, 10);
-	Circle(fx, fy, 10);
+
+
+//	FillRadialGradient(cx, cy, fx, fy, r, stops, 3);
+//	Circle(cx, cy, r);
+
+//	RGBA(.5, 0, 0, 0.3, dotcolor);
+//	SetFill(dotcolor);
+//	Circle(x1, y1, 10);
+//	Circle(x2, y2, 10);
+//	Circle(cx, cy, 10);
+//	Circle(cx+r/2, cy, 10);
+//	Circle(fx, fy, 10);
 	
 	RGB(0,0,0,dotcolor);
 	SetFill(dotcolor);
 	TextMid(x1, y1-20, "(x1, y1)", SansTypeface, 18);
 	TextMid(x2, y2+10, "(x2, y2)", SansTypeface, 18);
-	TextMid(cx, cy, "(cx, cy)", SansTypeface, 18);
-	TextMid(fx, fy, "(fx, fy)", SansTypeface, 18);
-	TextEnd(cx+(r/2)+20, cy, "r", SansTypeface, 18);
-	
-	
+
 	TextMid(x1+((x2-x1)/2), h/6, "Linear Gradient", SansTypeface, 36);
-	TextMid(cx, h/6, "Radial Gradient", SansTypeface, 36);
+//	TextMid(cx, h/6, "Radial Gradient", SansTypeface, 36);
 	
 	
 	End();
@@ -181,9 +186,9 @@ void fitwidth(int width, int adj, char *s, FW * f) {
 void testpattern(int w, int h, char *s) {
 	VGfloat midx, midy1, midy2, midy3;
 	int fontsize = 256, h2 = h / 2;
-	FW tw1 = { MonoTypeface, 0, fontsize };
+	FW tw1 = { SansTypeface, 0, fontsize };
 	FW tw2 = { SansTypeface, 0, fontsize };
-	FW tw3 = { SerifTypeface, 0, fontsize };
+	FW tw3 = { SansTypeface, 0, fontsize };
 
 	Start(w, h);
 
@@ -248,9 +253,9 @@ void tb(int w, int h) {
 
 	Start(w, h);
 	Fill(49, 79, 79, 1);
-	textlines(tmargin, top, para, SerifTypeface, fontsize, leading);
+	textlines(tmargin, top, para, SansTypeface, fontsize, leading);
 	textlines(tmargin, mid, para, SansTypeface, fontsize, leading);
-	textlines(tmargin, bot, para, MonoTypeface, fontsize, leading);
+	textlines(tmargin, bot, para, SansTypeface, fontsize, leading);
 	Text(lmargin, top - midb, "Serif", SansTypeface, lfontsize);
 	Text(lmargin, mid - midb, "Sans", SansTypeface, lfontsize);
 	Text(lmargin, bot - midb, "Mono", SansTypeface, lfontsize);
@@ -334,7 +339,7 @@ void fontrange(int w, int h) {
 	// for each size, display a character and label
 	for (x = lx, s = sizes; *s; s++) {
 		Fill(128, 0, 0, 1);
-		TextMid(x, y, "a", SerifTypeface, *s);
+		TextMid(x, y, "a", SansTypeface, *s);
 		Fill(128, 128, 128, 1);
 		snprintf(num, 3, "%d", *s);
 		TextMid(x, y - spacing, num, SansTypeface, 16);
@@ -460,7 +465,7 @@ void rotext(int w, int h, int n, char *s) {
 	Translate(x, y);
 	for (i = 0; i < n; i++) {
 		Fill(255, 255, 255, alpha);
-		Text(0, 0, s, SerifTypeface, size);
+		Text(0, 0, s, SansTypeface, size);
 		alpha -= fade;				   // fade
 		size += n;				   // enlarge
 		Rotate(deg);
@@ -595,22 +600,22 @@ void advert(int w, int h) {
 void demo(int w, int h, int sec) {
 	refcard(w, h);
 	sleep(sec);
-	rshapes(w, h, 50);
-	sleep(sec);
-	testpattern(w, h, "OpenVG on RasPi");
-	sleep(sec);
-	imagetable(w, h);
-	sleep(sec);
-	rotext(w, h, 30, "Raspi");
-	sleep(sec);
-	tb(w, h);
-	sleep(sec);
-	fontrange(w, h);
-	sleep(sec);
-	sunearth(w, h);
-	sleep(sec);
-	raspi(w, h, "The Raspberry Pi");
-	sleep(sec);
+//	rshapes(w, h, 50);
+//	sleep(sec);
+//	testpattern(w, h, "OpenVG on RasPi");
+//	sleep(sec);
+//	imagetable(w, h);
+//	sleep(sec);
+//	rotext(w, h, 30, "Raspi");
+//	sleep(sec);
+//	tb(w, h);
+//	sleep(sec);
+//	fontrange(w, h);
+//	sleep(sec);
+//	sunearth(w, h);
+//	sleep(sec);
+//	raspi(w, h, "The Raspberry Pi");
+//	sleep(sec);
 	gradient(w,h);
 	sleep(sec);
 	advert(w, h);

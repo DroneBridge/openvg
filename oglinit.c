@@ -62,7 +62,7 @@ static void setWindowParams(STATE_T * state, int32_t x, int32_t y, VC_RECT_T * s
 
 	state->window_x = x;
 	state->window_y = y;
-        
+
 	vc_dispmanx_rect_set(dst_rect, dx, dy, w, h);
 	vc_dispmanx_rect_set(src_rect, sx << 16, sy << 16, w << 16, h << 16);
 }
@@ -82,7 +82,8 @@ void oglinit(STATE_T * state) {
 	VC_RECT_T dst_rect;
 	VC_RECT_T src_rect;
 	static VC_DISPMANX_ALPHA_T alpha = {
-		DISPMANX_FLAGS_ALPHA_FIXED_ALL_PIXELS,
+//              DISPMANX_FLAGS_ALPHA_FIXED_ALL_PIXELS,
+		DISPMANX_FLAGS_ALPHA_FROM_SOURCE,
 		255, 0
 	};
 
@@ -134,7 +135,7 @@ void oglinit(STATE_T * state) {
 	state->dmx_display = dispman_display;
 	dispman_update = vc_dispmanx_update_start(0);
 
-	dispman_element = vc_dispmanx_element_add(dispman_update, dispman_display, 0 /*layer */ , &dst_rect, 0 /*src */ ,
+	dispman_element = vc_dispmanx_element_add(dispman_update, dispman_display, 1 /*layer */ , &dst_rect, 0 /*src */ ,
 						  &src_rect, DISPMANX_PROTECTION_NONE, &alpha, 0 /*clamp */ ,
 						  0 /*transform */ );
 
@@ -235,7 +236,7 @@ cursor_t *createCursor(STATE_T * state, const uint32_t * data, uint32_t w, uint3
 		data += incr;
 	}
 
-	VC_RECT_T dst_rect = { .width = w, h };
+	VC_RECT_T dst_rect = {.width = w, h };
 	vc_dispmanx_resource_write_data(cursor->resource, VC_IMAGE_RGBA32, pitch, image, &dst_rect);
 	free(image);
 	cursor->state.element = 0;
@@ -311,32 +312,33 @@ void screenBrightness(STATE_T * state, uint32_t level) {
 	static uint32_t brightnessLevel = 255;
 	static DISPMANX_RESOURCE_HANDLE_T brightnessLayer = 0;
 	static DISPMANX_ELEMENT_HANDLE_T brightnessElement = 0;
-        int ret;
+	int ret;
 
 	if (level > 255)
 		level = 255;
 	if (brightnessLevel == level)
 		return;
 
-        VC_RECT_T src_rect, dst_rect;
+	VC_RECT_T src_rect, dst_rect;
 	if (!brightnessLayer) {
 		uint32_t img_p;
 		brightnessLayer = vc_dispmanx_resource_create(VC_IMAGE_RGBA32, 1, 1, &img_p);
 		if (!brightnessLayer)
 			return;
-                uint32_t image = 0;
-                dst_rect = (VC_RECT_T){ .width = 1, 1 };
+		uint32_t image = 0;
+		dst_rect = (VC_RECT_T) {
+		.width = 1, 1};
 		ret = vc_dispmanx_resource_write_data(brightnessLayer, VC_IMAGE_RGBA32, sizeof image, &image, &dst_rect);
-                if (!ret) {
-                        vc_dispmanx_resource_delete(brightnessLayer);
-                        brightnessLayer = 0;
-                        return;
-                }
+		if (!ret) {
+			vc_dispmanx_resource_delete(brightnessLayer);
+			brightnessLayer = 0;
+			return;
+		}
 	}
 
 	brightnessLevel = level;
 
-        DISPMANX_UPDATE_HANDLE_T update;
+	DISPMANX_UPDATE_HANDLE_T update;
 	if (level == 255) {
 		update = vc_dispmanx_update_start(0);
 		vc_dispmanx_element_remove(update, brightnessElement);
@@ -358,9 +360,10 @@ void screenBrightness(STATE_T * state, uint32_t level) {
 			alpha.opacity = 255 - level;
 
 			update = vc_dispmanx_update_start(0);
-                        src_rect = (VC_RECT_T){ .width = 1<<16, 1<<16 };
-                        dst_rect = (VC_RECT_T){ .width = state->screen_width,
-                                                state->screen_height };
+			src_rect = (VC_RECT_T) {
+			.width = 1 << 16, 1 << 16};
+			dst_rect = (VC_RECT_T) {
+			.width = state->screen_width, state->screen_height};
 			brightnessElement = vc_dispmanx_element_add(update,
 								    state->dmx_display,
 								    255, &dst_rect,

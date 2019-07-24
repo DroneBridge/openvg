@@ -22,10 +22,10 @@ int main() {
 	Fill(44, 77, 232, 1);				   // Big blue marble
 	Circle(width / 2, 0, width);			   // The "world"
 	Fill(255, 255, 255, 1);				   // White text
-	TextMid(width / 2, (height * 0.7), "hello, world", SerifTypeface, width / 15);	// Greetings 
-	TextMid(width / 2, (height * 0.5), hello1 , SerifTypeface, width / 15);
-	TextMid(width / 2, (height * 0.3), hello2 , SerifTypeface, width / 15);
-	TextMid(width / 2, (height * 0.1), hello3 , SerifTypeface, width / 15);
+	TextMid(width / 2, (height * 0.7), "hello, world", SansTypeface, width / 15);	// Greetings 
+	TextMid(width / 2, (height * 0.5), hello1 , SansTypeface, width / 15);
+	TextMid(width / 2, (height * 0.3), hello2 , SansTypeface, width / 15);
+	TextMid(width / 2, (height * 0.1), hello3 , SansTypeface, width / 15);
 	End();						   // End the picture
 
         WindowSaveAsPng("hello.png", 0, 0, 0, 0, 9);

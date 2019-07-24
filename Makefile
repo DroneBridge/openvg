@@ -14,9 +14,9 @@ endif
 INCLUDEFLAGS=-I$(RPISDK)/opt/vc/include -I$(RPISDK)/opt/vc/include/interface/vmcs_host/linux -I$(RPISDK)/opt/vc/include/interface/vcos/pthreads -fPIC
 LIBFLAGS=-L$(RPISDK)/opt/vc/lib -lEGL -lGLESv2 -ljpeg -lpng -lfreetype -lfontconfig -lz
 FONTLIB=/usr/share/fonts/truetype/dejavu
-FONTFILES=DejaVuSans.inc  DejaVuSansMono.inc DejaVuSerif.inc
+FONTFILES=DejaVuSans.inc DejaVuSansMono.inc
 
-all:	font2openvg fonts library	
+all:	font2openvg fonts library
 
 libshapes.o:	libshapes.c shapes.h fontinfo.h fontsystem.h fonts
 	$(CC) $(CCOPTS) $(INCLUDEFLAGS) -c libshapes.c
@@ -37,9 +37,6 @@ fonts:	$(FONTFILES)
 
 DejaVuSans.inc: font2openvg $(FONTLIB)/DejaVuSans.ttf
 	./font2openvg $(FONTLIB)/DejaVuSans.ttf DejaVuSans.inc DejaVuSans
-
-DejaVuSerif.inc: font2openvg $(FONTLIB)/DejaVuSerif.ttf
-	./font2openvg $(FONTLIB)/DejaVuSerif.ttf DejaVuSerif.inc DejaVuSerif
 
 DejaVuSansMono.inc: font2openvg $(FONTLIB)/DejaVuSansMono.ttf
 	./font2openvg $(FONTLIB)/DejaVuSansMono.ttf DejaVuSansMono.inc DejaVuSansMono

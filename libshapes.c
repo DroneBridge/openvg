@@ -19,7 +19,6 @@
 #include "EGL/egl.h"
 #include "bcm_host.h"
 #include "DejaVuSans.inc"				   // font data
-#include "DejaVuSerif.inc"
 #include "DejaVuSansMono.inc"
 #include "eglstate.h"					   // data structures for graphics state
 #include "fontinfo.h"					   // font data structure
@@ -340,7 +339,8 @@ static void dumpscreen(VGuint w, VGuint h, FILE * fp) {
 	}
 }
 
-Fontinfo SansTypeface, SerifTypeface, MonoTypeface;
+//Fontinfo SansTypeface, SerifTypeface, MonoTypeface;
+Fontinfo SansTypeface, MonoTypeface;
 
 // initWindowSize requests a specific window size & position, if not called
 // then init() will open a full screen window.
@@ -381,18 +381,6 @@ bool InitShapes(int32_t * w, int32_t * h) {
 		SansTypeface->Name = "DejaVu Sans";
 		SansTypeface->Style = "Book";
 	}
-	SerifTypeface = LoadFont(DejaVuSerif_glyphPoints,
-				 DejaVuSerif_glyphPointIndices,
-				 DejaVuSerif_glyphInstructions,
-				 DejaVuSerif_glyphInstructionIndices,
-				 DejaVuSerif_glyphInstructionCounts,
-				 DejaVuSerif_glyphAdvances,
-				 DejaVuSerif_characterMap,
-				 DejaVuSerif_glyphCount, DejaVuSerif_descender_height, DejaVuSerif_ascender_height);
-	if (SerifTypeface) {
-		SerifTypeface->Name = "DejaVu Serif";
-		SerifTypeface->Style = "Book";
-	}
 	MonoTypeface = LoadFont(DejaVuSansMono_glyphPoints,
 				DejaVuSansMono_glyphPointIndices,
 				DejaVuSansMono_glyphInstructions,
@@ -408,7 +396,7 @@ bool InitShapes(int32_t * w, int32_t * h) {
 	*w = (int32_t) state->window_width;
 	*h = (int32_t) state->window_height;
 
-	if (!SansTypeface || !SerifTypeface || !MonoTypeface) {
+	if (!SansTypeface || !MonoTypeface) {
 		fputs("libshapes failed to load the default fonts.", stderr);
 	}
 
@@ -529,7 +517,7 @@ uint32_t CheckErrorStatus() {
 
 // finish cleans up
 void FinishShapes() {
-        ScreenBrightness(255);
+	ScreenBrightness(255);
 	DeleteCursor();
 	eglSwapBuffers(state->display, state->surface);
 	vgDestroyPath(dot_rough_path);
@@ -545,8 +533,8 @@ void FinishShapes() {
 	vgDestroyPath(common_path);
 	UnloadFont(SansTypeface);
 	SansTypeface = NULL;
-	UnloadFont(SerifTypeface);
-	SerifTypeface = NULL;
+//      UnloadFont(SerifTypeface);
+//      SerifTypeface = NULL;
 	UnloadFont(MonoTypeface);
 	MonoTypeface = NULL;
 	font_CloseFontSystem();
@@ -959,7 +947,7 @@ void Arc(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat sa, VGfloat aext) {
 
 // Start begins the picture, clearing a rectangular region with a specified color
 void Start(VGint width, VGint height) {
-	VGfloat color[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	VGfloat color[4] = { 1.0f, 1.0f, 1.0f, 0.0f };
 	vgSetfv(VG_CLEAR_COLOR, 4, color);
 	vgClear(0, 0, width, height);
 	color[0] = color[1] = color[2] = 0.0f;

@@ -21,7 +21,8 @@ extern "C" {
 	} Fontinfo_T;
 	typedef struct Fontinfo_T *Fontinfo;
 
-	extern Fontinfo SansTypeface, SerifTypeface, MonoTypeface;
+//      extern Fontinfo SansTypeface, SerifTypeface, MonoTypeface;
+	extern Fontinfo SansTypeface, MonoTypeface;
 #if defined(__cplusplus)
 }
 #endif
