@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <time.h>
+#include <stdlib.h>
 #include "shapes.h"
 
 VGPaint myRed;
@@ -23,6 +24,8 @@ void drawScene()
     StrokePaint(myRed);
     StrokeWidth(1.0f);  // Dot doesn't use stroke so we shouldn't see red
 
+    Scale(16.0f, 16.0f);
+    
     for(i = 0; i < count; i++) {
         float xp = (float)(rand() & 0x3ff);
         float yp = (float)(rand() & 0x1ff);
@@ -30,7 +33,7 @@ void drawScene()
     }
     
     End();
-    WindowSaveAsPng("win.png", 0,0, 640, 640, 9);
+    WindowSaveAsPng("win.png", 0,0, 0, 0, 9);
 }
 
 void freeData()
