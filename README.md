@@ -6,6 +6,8 @@ Experimental extension of ajstarks' library by Paeryn.
   Added direct font loading (no longer need to use font2openvg to convert).
   Changed some of the basic shape drawing routines to avoid constant memory allocation/deallocations.
 
+**This version is modified to best work with DroneBridge OSD**
+
 ## First program
 
 Here is the graphics equivalent of "hello, world"
@@ -371,7 +373,7 @@ The indent tool is also useful for code formatting.  Install them via:
 
 Next, build the library and test:
 
-	pi@raspberrypi ~ $ git clone git://github.com/paeryn/openvg
+	pi@raspberrypi ~ $ git clone https://github.com/DroneBridge/openvg.git
 	pi@raspberrypi ~ $ cd openvg
 	pi@raspberrypi ~ $ git checkout windowsave
 	pi@raspberrypi ~/openvg $ make
