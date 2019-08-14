@@ -12,7 +12,7 @@ CCOPTS += -O2
 endif
 
 INCLUDEFLAGS=-I$(RPISDK)/opt/vc/include -I$(RPISDK)/opt/vc/include/interface/vmcs_host/linux -I$(RPISDK)/opt/vc/include/interface/vcos/pthreads -fPIC
-LIBFLAGS=-L$(RPISDK)/opt/vc/lib -lEGL -lGLESv2 -ljpeg -lpng -lfreetype -lfontconfig -lz
+LIBFLAGS=-L$(RPISDK)/opt/vc/lib -lbrcmEGL -lbrcmGLESv2 -ljpeg -lpng -lfreetype -lfontconfig -lz
 FONTLIB=/usr/share/fonts/truetype/dejavu
 FONTFILES=DejaVuSans.inc DejaVuSansMono.inc
 
